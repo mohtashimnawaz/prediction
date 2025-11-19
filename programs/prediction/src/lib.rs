@@ -310,6 +310,26 @@ pub mod prediction {
         msg!("Platform fee collected: {} lamports", platform_fee);
         Ok(())
     }
+
+    pub fn mint_card(
+        ctx: Context<MintCard>,
+        power: u8,
+        rarity: u8,
+        multiplier: u64,
+    ) -> Result<()> {
+        let card = &mut ctx.accounts.card;
+        card.mint = ctx.accounts.mint.key();
+        card.owner = ctx.accounts.owner.key();
+        card.power = power;
+        card.rarity = rarity;
+        card.multiplier = multiplier;
+        card.wins = 0;
+        card.losses = 0;
+        card.bump = ctx.bumps.card;
+
+        msg!("Card registered: {} owner: {}", card.mint, card.owner);
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -444,6 +464,37 @@ pub struct CollectPlatformFee<'info> {
     pub treasury: AccountInfo<'info>,
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct MintCard<'info> {
+    #[account(
+        init,
+        payer = payer,
+        space = 8 + Card::INIT_SPACE,
+        seeds = [b"card", mint.key().as_ref()],
+        bump
+    )]
+    pub card: Account<'info, Card>,
+    /// CHECK: Mint pubkey for NFT (SPL mint)
+    pub mint: AccountInfo<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub owner: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct Card {
+    pub mint: Pubkey,
+    pub owner: Pubkey,
+    pub power: u8,
+    pub rarity: u8,
+    pub multiplier: u64,
+    pub wins: u64,
+    pub losses: u64,
+    pub bump: u8,
 }
 
 #[account]

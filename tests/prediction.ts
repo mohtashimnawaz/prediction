@@ -335,4 +335,39 @@ describe("prediction", () => {
       console.log("✅ Correctly prevented double claiming");
     }
   });
+
+  it("Registers a Card (mint_card)", async () => {
+    // Create a dummy mint pubkey to represent the NFT mint
+    const mintKeypair = Keypair.generate();
+
+    const [cardPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("card"), mintKeypair.publicKey.toBuffer()],
+      program.programId
+    );
+
+    const multiplier = new BN(1500);
+
+    // Payer is the authority (provider wallet); owner is bettor1 and must sign
+    await program.methods
+      .mintCard(5, 2, multiplier)
+      .accounts({
+        card: cardPda,
+        mint: mintKeypair.publicKey,
+        payer: authority.publicKey,
+        owner: bettor1.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([bettor1])
+      .rpc();
+
+    const card = await program.account.card.fetch(cardPda);
+    assert.equal(card.mint.toBase58(), mintKeypair.publicKey.toBase58());
+    assert.equal(card.owner.toBase58(), bettor1.publicKey.toBase58());
+    assert.equal(card.power, 5);
+    assert.equal(card.rarity, 2);
+    assert.equal(card.multiplier.toNumber(), 1500);
+    assert.equal(card.wins.toNumber(), 0);
+
+    console.log("✅ Card registered and metadata stored");
+  });
 });
