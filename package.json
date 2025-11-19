@@ -1,0 +1,40 @@
+{
+  "name": "solana-prediction-market",
+  "version": "1.0.0",
+  "description": "A decentralized prediction market built on Solana for the Indie.fun Hackathon",
+  "license": "MIT",
+  "author": "Your Name",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/solana-prediction-market"
+  },
+  "keywords": [
+    "solana",
+    "prediction-market",
+    "blockchain",
+    "anchor",
+    "web3",
+    "defi"
+  ],
+  "scripts": {
+    "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
+    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "build": "anchor build",
+    "test": "anchor test",
+    "deploy:devnet": "anchor deploy --provider.cluster devnet",
+    "deploy:mainnet": "anchor deploy --provider.cluster mainnet"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1"
+  },
+  "devDependencies": {
+    "chai": "^4.3.4",
+    "mocha": "^9.0.3",
+    "ts-mocha": "^10.0.0",
+    "@types/bn.js": "^5.1.0",
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^9.0.0",
+    "typescript": "^5.7.3",
+    "prettier": "^2.6.2"
+  }
+}
