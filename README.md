@@ -1,39 +1,44 @@
-# 🔮 Solana Prediction Market
+# 🎮 On-Chain Social Prediction Arena
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Built with Anchor](https://img.shields.io/badge/Built%20with-Anchor-blueviolet)](https://www.anchor-lang.com/)
 [![Solana](https://img.shields.io/badge/Solana-Blockchain-green)](https://solana.com/)
 
-A decentralized prediction market platform built on Solana for the **Indie.fun Hackathon**. Create markets, place bets, and win rewards in a trustless, transparent environment powered by smart contracts.
+A revolutionary **gamified prediction market** built on Solana for the **Indie.fun Hackathon**. Battle with NFT prediction cards that have unique traits and multipliers. Make predictions, battle other players, and watch your cards evolve as you win—all powered by on-chain VRF randomness.
 
 ## 🎯 Overview
 
-Solana Prediction Market enables users to create prediction markets on any yes/no question, bet on outcomes with SOL, and claim winnings based on proportional payouts. The platform leverages Solana's high-speed, low-cost blockchain to deliver a seamless betting experience.
+On-Chain Social Prediction Arena combines **prediction markets** with **NFT-based gaming**. Each player owns prediction cards (NFTs) with unique traits (power, rarity, multipliers) that affect battle outcomes and rewards. Use on-chain VRF for fair randomness, compete in prediction battles, and watch your card stats evolve with wins and losses—all trustlessly on Solana.
 
 ### 🚀 Innovative Features
 
-This project implements **advanced architectural patterns** that showcase Solana's unique capabilities:
+This project implements **game-changing mechanics** that showcase Solana's unique capabilities:
 
-1. **🏗️ Platform-Level Architecture** - Global state tracking for metrics & analytics
-2. **📊 Running Totals Optimization** - O(1) pool calculations vs O(n) queries
-3. **🔮 Pyth Oracle Integration** - Automated price-based market resolution
-4. **🏷️ Market Categorization** - Efficient on-chain indexing (Sports, Crypto, Politics, etc.)
-5. **💰 Platform Fee Mechanism** - Sustainable 2% fee to treasury
-6. **🎲 Extensible Market Types** - Binary & Price Oracle (Scalar/Perpetual coming)
+1. **🃏 NFT Prediction Cards** - Each card is an NFT with unique traits (power, rarity, multiplier)
+2. **🎲 On-Chain VRF Battles** - Fair randomness for battle outcomes using on-chain VRF
+3. **📈 Dynamic NFT Metadata** - Card stats (wins/losses) update on-chain after each battle
+4. **🏗️ Platform-Level Architecture** - Global state tracking for leaderboards & analytics
+5. **🔮 Pyth Oracle Integration** - Automated price-based market resolution
+6. **🏷️ Market Categorization** - Efficient on-chain indexing (Sports, Crypto, Politics, etc.)
+7. **💰 Reward Multipliers** - High-rarity cards earn bigger rewards (up to 3x)
+8. **📊 Running Totals Optimization** - O(1) pool calculations for instant battles
 
 **[→ Read the full technical deep dive](./INNOVATIVE_FEATURES.md)**
 
 ### Key Features
 
+- 🃏 **Mint Prediction Cards**: Create NFT cards with unique traits (power, rarity, multiplier)
+- ⚔️ **Battle Mode**: Use cards to enter prediction battles with on-chain VRF outcomes
+- 📈 **Evolving NFTs**: Card metadata updates on-chain after wins/losses
+- 🏆 **Multiplier Rewards**: High-rarity cards earn up to 3x rewards
 - ✅ **Create Markets**: Launch prediction markets with custom questions and end times
-- 💰 **Place Bets**: Bet SOL on YES or NO outcomes
-- 🏆 **Proportional Payouts**: Winners share the pool proportionally (minus 2% platform fee)
+- 💰 **Place Bets**: Bet SOL on YES or NO outcomes with your cards
 - 🔒 **Trustless Resolution**: Market creators or oracles resolve outcomes
 - ⚡ **Lightning Fast**: Built on Solana for 400ms transactions
 - 🔐 **Secure**: PDA vault custody with comprehensive tests
 - 🔮 **Oracle Support**: Pyth Network integration for price-based markets
 - 🏷️ **Categorized**: Sports, Crypto, Politics, Weather, Gaming, and more
-- 📊 **Platform Metrics**: Real-time tracking of volume and market count
+- 📊 **Platform Metrics**: Real-time tracking of volume, market count, and card stats
 
 ## 🚀 Quick Start
 

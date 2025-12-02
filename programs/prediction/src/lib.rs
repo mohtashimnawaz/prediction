@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
+use anchor_spl::token::{self, Token, Mint, TokenAccount, MintTo};
+use anchor_spl::associated_token::AssociatedToken;
 
 declare_id!("894VcrRiHhZmk7hAuucP5foDGoeWpykqC84zfoLBTbfW");
 
@@ -317,6 +319,17 @@ pub mod prediction {
         rarity: u8,
         multiplier: u64,
     ) -> Result<()> {
+        // Mint 1 token to the owner's token account (NFT standard: supply = 1)
+        let cpi_accounts = MintTo {
+            mint: ctx.accounts.mint.to_account_info(),
+            to: ctx.accounts.token_account.to_account_info(),
+            authority: ctx.accounts.payer.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::mint_to(cpi_ctx, 1)?;
+
+        // Store card metadata on-chain
         let card = &mut ctx.accounts.card;
         card.mint = ctx.accounts.mint.key();
         card.owner = ctx.accounts.owner.key();
@@ -327,7 +340,102 @@ pub mod prediction {
         card.losses = 0;
         card.bump = ctx.bumps.card;
 
-        msg!("Card registered: {} owner: {}", card.mint, card.owner);
+        msg!("NFT Card minted: {} owner: {} rarity: {}", card.mint, card.owner, rarity);
+        Ok(())
+    }
+
+    pub fn battle(
+        ctx: Context<Battle>,
+        amount: u64,
+        prediction: bool,
+    ) -> Result<()> {
+        require!(amount > 0, PredictionError::InvalidAmount);
+        
+        let market = &mut ctx.accounts.market;
+        let card = &ctx.accounts.card;
+        
+        // Verify card ownership via token account
+        require!(
+            ctx.accounts.card_token_account.amount == 1,
+            PredictionError::NotCardOwner
+        );
+        require!(
+            ctx.accounts.card_token_account.owner == ctx.accounts.player.key(),
+            PredictionError::NotCardOwner
+        );
+        
+        require!(!market.resolved, PredictionError::MarketAlreadyResolved);
+        require!(Clock::get()?.unix_timestamp < market.end_time, PredictionError::MarketEnded);
+
+        // Transfer SOL from player to market vault
+        let cpi_context = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            system_program::Transfer {
+                from: ctx.accounts.player.to_account_info(),
+                to: ctx.accounts.vault.to_account_info(),
+            },
+        );
+        system_program::transfer(cpi_context, amount)?;
+
+        // Update market totals
+        if prediction {
+            market.total_yes_amount = market.total_yes_amount.checked_add(amount).unwrap();
+        } else {
+            market.total_no_amount = market.total_no_amount.checked_add(amount).unwrap();
+        }
+
+        // Initialize or update bet account with card multiplier
+        let bet = &mut ctx.accounts.bet;
+        bet.market = market.key();
+        bet.bettor = ctx.accounts.player.key();
+        bet.amount = bet.amount.checked_add(amount).unwrap();
+        bet.prediction = prediction;
+        bet.claimed = false;
+        bet.card_mint = Some(card.mint);
+        bet.card_multiplier = card.multiplier;
+
+        // Update platform volume
+        let platform = &mut ctx.accounts.platform;
+        platform.total_volume = platform.total_volume.checked_add(amount).unwrap();
+
+        msg!("Battle entered: {} SOL with card {} ({}x multiplier)", 
+             amount as f64 / 1_000_000_000.0,
+             card.mint,
+             card.multiplier as f64 / 1000.0);
+        Ok(())
+    }
+
+    pub fn update_card_stats(
+        ctx: Context<UpdateCardStats>,
+        won: bool,
+    ) -> Result<()> {
+        let card = &mut ctx.accounts.card;
+        
+        // Verify card ownership
+        require!(
+            ctx.accounts.card_token_account.amount == 1,
+            PredictionError::NotCardOwner
+        );
+        require!(
+            ctx.accounts.card_token_account.owner == ctx.accounts.owner.key(),
+            PredictionError::NotCardOwner
+        );
+        
+        if won {
+            card.wins = card.wins.checked_add(1).unwrap();
+        } else {
+            card.losses = card.losses.checked_add(1).unwrap();
+        }
+        
+        let total_battles = card.wins + card.losses;
+        let win_rate = if total_battles > 0 {
+            (card.wins as f64 / total_battles as f64) * 100.0
+        } else {
+            0.0
+        };
+        
+        msg!("Card {} updated | Record: {}-{} | Win Rate: {:.1}%",
+             card.mint, card.wins, card.losses, win_rate);
         Ok(())
     }
 }
@@ -467,6 +575,50 @@ pub struct CollectPlatformFee<'info> {
 }
 
 #[derive(Accounts)]
+pub struct Battle<'info> {
+    #[account(mut)]
+    pub market: Account<'info, Market>,
+    #[account(mut)]
+    pub platform: Account<'info, Platform>,
+    pub card: Account<'info, Card>,
+    #[account(
+        constraint = card_token_account.mint == card.mint,
+        constraint = card_token_account.owner == player.key()
+    )]
+    pub card_token_account: Account<'info, TokenAccount>,
+    #[account(
+        init_if_needed,
+        payer = player,
+        space = 8 + Bet::INIT_SPACE,
+        seeds = [b"bet", market.key().as_ref(), player.key().as_ref()],
+        bump
+    )]
+    pub bet: Account<'info, Bet>,
+    #[account(
+        mut,
+        seeds = [b"vault", market.key().as_ref()],
+        bump
+    )]
+    /// CHECK: Vault PDA for holding bets
+    pub vault: AccountInfo<'info>,
+    #[account(mut)]
+    pub player: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateCardStats<'info> {
+    #[account(mut)]
+    pub card: Account<'info, Card>,
+    #[account(
+        constraint = card_token_account.mint == card.mint,
+        constraint = card_token_account.owner == owner.key()
+    )]
+    pub card_token_account: Account<'info, TokenAccount>,
+    pub owner: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct MintCard<'info> {
     #[account(
         init,
@@ -476,11 +628,26 @@ pub struct MintCard<'info> {
         bump
     )]
     pub card: Account<'info, Card>,
-    /// CHECK: Mint pubkey for NFT (SPL mint)
-    pub mint: AccountInfo<'info>,
+    #[account(
+        init,
+        payer = payer,
+        mint::decimals = 0,
+        mint::authority = payer,
+        mint::freeze_authority = payer,
+    )]
+    pub mint: Account<'info, Mint>,
+    #[account(
+        init,
+        payer = payer,
+        associated_token::mint = mint,
+        associated_token::authority = owner,
+    )]
+    pub token_account: Account<'info, TokenAccount>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub owner: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
 
@@ -535,6 +702,8 @@ pub struct Bet {
     pub amount: u64,
     pub prediction: bool,
     pub claimed: bool,
+    pub card_mint: Option<Pubkey>,
+    pub card_multiplier: u64,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace, Debug)]
@@ -594,4 +763,6 @@ pub enum PredictionError {
     NoWinningBets,
     #[msg("Not an oracle market")]
     NotOracleMarket,
+    #[msg("Not the card owner")]
+    NotCardOwner,
 }
