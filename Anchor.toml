@@ -5,6 +5,9 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
+[programs.devnet]
+prediction = "ocKzKFLEt9dWXtPmD1xQSvGgA7ugaFFkGv4oXnWNa2N"
+
 [programs.localnet]
 prediction = "894VcrRiHhZmk7hAuucP5foDGoeWpykqC84zfoLBTbfW"
 
@@ -12,8 +15,9 @@ prediction = "894VcrRiHhZmk7hAuucP5foDGoeWpykqC84zfoLBTbfW"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+initialize = "yarn run ts-node scripts/initialize-platform.ts"

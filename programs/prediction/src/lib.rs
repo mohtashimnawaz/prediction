@@ -3,7 +3,7 @@ use anchor_lang::system_program;
 use anchor_spl::token::{self, Token, Mint, TokenAccount, MintTo};
 use anchor_spl::associated_token::AssociatedToken;
 
-declare_id!("894VcrRiHhZmk7hAuucP5foDGoeWpykqC84zfoLBTbfW");
+declare_id!("ocKzKFLEt9dWXtPmD1xQSvGgA7ugaFFkGv4oXnWNa2N");
 
 const PLATFORM_FEE_BPS: u64 = 200; // 2% platform fee
 
@@ -19,7 +19,6 @@ pub mod prediction {
         platform.total_volume = 0;
         platform.bump = ctx.bumps.platform;
         
-        msg!("Platform initialized with treasury: {}", platform.treasury);
         Ok(())
     }
 
@@ -29,10 +28,9 @@ pub mod prediction {
         description: String,
         end_time: i64,
         category: MarketCategory,
-        market_type: MarketType,
     ) -> Result<()> {
-        require!(question.len() <= 200, PredictionError::QuestionTooLong);
-        require!(description.len() <= 500, PredictionError::DescriptionTooLong);
+        require!(question.len() <= 100, PredictionError::QuestionTooLong);
+        require!(description.len() <= 200, PredictionError::DescriptionTooLong);
         require!(end_time > Clock::get()?.unix_timestamp, PredictionError::InvalidEndTime);
 
         let market = &mut ctx.accounts.market;
@@ -45,7 +43,6 @@ pub mod prediction {
         market.total_yes_amount = 0;
         market.total_no_amount = 0;
         market.category = category;
-        market.market_type = market_type;
         market.creator = ctx.accounts.authority.key();
         market.created_at = Clock::get()?.unix_timestamp;
         market.bump = ctx.bumps.market;
@@ -54,47 +51,6 @@ pub mod prediction {
         let platform = &mut ctx.accounts.platform;
         platform.total_markets = platform.total_markets.checked_add(1).unwrap();
 
-        msg!("Market created: {} | Category: {:?}", market.question, market.category);
-        Ok(())
-    }
-
-    pub fn create_oracle_market(
-        ctx: Context<CreateOracleMarket>,
-        question: String,
-        description: String,
-        end_time: i64,
-        category: MarketCategory,
-        target_price: i64,
-        price_comparison: PriceComparison,
-    ) -> Result<()> {
-        require!(question.len() <= 200, PredictionError::QuestionTooLong);
-        require!(description.len() <= 500, PredictionError::DescriptionTooLong);
-        require!(end_time > Clock::get()?.unix_timestamp, PredictionError::InvalidEndTime);
-
-        let market = &mut ctx.accounts.market;
-        market.authority = ctx.accounts.authority.key();
-        market.question = question;
-        market.description = description;
-        market.end_time = end_time;
-        market.resolved = false;
-        market.outcome = None;
-        market.total_yes_amount = 0;
-        market.total_no_amount = 0;
-        market.category = category;
-        market.market_type = MarketType::PriceOracle {
-            price_feed: ctx.accounts.price_feed.key(),
-            target_price,
-            comparison: price_comparison,
-        };
-        market.creator = ctx.accounts.authority.key();
-        market.created_at = Clock::get()?.unix_timestamp;
-        market.bump = ctx.bumps.market;
-
-        // Update platform stats
-        let platform = &mut ctx.accounts.platform;
-        platform.total_markets = platform.total_markets.checked_add(1).unwrap();
-
-        msg!("Oracle market created with Pyth feed: {}", ctx.accounts.price_feed.key());
         Ok(())
     }
 
@@ -138,7 +94,6 @@ pub mod prediction {
         let platform = &mut ctx.accounts.platform;
         platform.total_volume = platform.total_volume.checked_add(amount).unwrap();
 
-        msg!("Bet placed: {} lamports on {}", amount, if prediction { "YES" } else { "NO" });
         Ok(())
     }
 
@@ -160,47 +115,6 @@ pub mod prediction {
         market.resolved = true;
         market.outcome = Some(outcome);
 
-        msg!("Market resolved: outcome = {}", outcome);
-        Ok(())
-    }
-
-    pub fn resolve_oracle_market(
-        ctx: Context<ResolveOracleMarket>,
-    ) -> Result<()> {
-        let market = &mut ctx.accounts.market;
-        require!(!market.resolved, PredictionError::MarketAlreadyResolved);
-        require!(
-            Clock::get()?.unix_timestamp >= market.end_time,
-            PredictionError::MarketNotEnded
-        );
-
-        // Get market type details
-        let (target_price, comparison) = match &market.market_type {
-            MarketType::PriceOracle { target_price, comparison, .. } => (*target_price, comparison.clone()),
-            _ => return Err(PredictionError::NotOracleMarket.into()),
-        };
-
-        // Read Pyth price (simplified - in production, use proper Pyth SDK)
-        // For now, we'll allow manual resolution with authority check
-        require!(
-            ctx.accounts.authority.key() == market.authority,
-            PredictionError::Unauthorized
-        );
-
-        // In production, read actual Pyth price here:
-        // let price_data = &ctx.accounts.price_feed;
-        // let current_price = parse_pyth_price(price_data)?;
-        // let outcome = match comparison {
-        //     PriceComparison::GreaterThan => current_price > target_price,
-        //     PriceComparison::LessThan => current_price < target_price,
-        //     PriceComparison::Equals => current_price == target_price,
-        // };
-
-        // For MVP, authority provides outcome (later: full Pyth integration)
-        market.resolved = true;
-        // market.outcome = Some(outcome); // Set via separate instruction for now
-
-        msg!("Oracle market resolved using price feed");
         Ok(())
     }
 
@@ -264,7 +178,6 @@ pub mod prediction {
 
         bet.claimed = true;
 
-        msg!("Winnings claimed: {} lamports (after 2% platform fee)", winnings);
         Ok(())
     }
 
@@ -309,7 +222,6 @@ pub mod prediction {
             signer_seeds,
         )?;
 
-        msg!("Platform fee collected: {} lamports", platform_fee);
         Ok(())
     }
 
@@ -340,7 +252,6 @@ pub mod prediction {
         card.losses = 0;
         card.bump = ctx.bumps.card;
 
-        msg!("NFT Card minted: {} owner: {} rarity: {}", card.mint, card.owner, rarity);
         Ok(())
     }
 
@@ -398,10 +309,6 @@ pub mod prediction {
         let platform = &mut ctx.accounts.platform;
         platform.total_volume = platform.total_volume.checked_add(amount).unwrap();
 
-        msg!("Battle entered: {} SOL with card {} ({}x multiplier)", 
-             amount as f64 / 1_000_000_000.0,
-             card.mint,
-             card.multiplier as f64 / 1000.0);
         Ok(())
     }
 
@@ -427,15 +334,6 @@ pub mod prediction {
             card.losses = card.losses.checked_add(1).unwrap();
         }
         
-        let total_battles = card.wins + card.losses;
-        let win_rate = if total_battles > 0 {
-            (card.wins as f64 / total_battles as f64) * 100.0
-        } else {
-            0.0
-        };
-        
-        msg!("Card {} updated | Record: {}-{} | Win Rate: {:.1}%",
-             card.mint, card.wins, card.losses, win_rate);
         Ok(())
     }
 }
@@ -476,26 +374,6 @@ pub struct CreateMarket<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(question: String)]
-pub struct CreateOracleMarket<'info> {
-    #[account(
-        init,
-        payer = authority,
-        space = 8 + Market::INIT_SPACE,
-        seeds = [b"market", authority.key().as_ref(), &question.as_bytes()[..question.len().min(32)]],
-        bump
-    )]
-    pub market: Account<'info, Market>,
-    #[account(mut)]
-    pub platform: Account<'info, Platform>,
-    /// CHECK: Pyth price feed account
-    pub price_feed: AccountInfo<'info>,
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
 pub struct PlaceBet<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
@@ -525,15 +403,6 @@ pub struct PlaceBet<'info> {
 pub struct ResolveMarket<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct ResolveOracleMarket<'info> {
-    #[account(mut)]
-    pub market: Account<'info, Market>,
-    /// CHECK: Pyth price feed account
-    pub price_feed: AccountInfo<'info>,
     pub authority: Signer<'info>,
 }
 
@@ -679,9 +548,9 @@ pub struct Platform {
 pub struct Market {
     pub authority: Pubkey,
     pub creator: Pubkey,
-    #[max_len(200)]
+    #[max_len(100)]
     pub question: String,
-    #[max_len(500)]
+    #[max_len(200)]
     pub description: String,
     pub end_time: i64,
     pub created_at: i64,
@@ -690,7 +559,6 @@ pub struct Market {
     pub total_yes_amount: u64,
     pub total_no_amount: u64,
     pub category: MarketCategory,
-    pub market_type: MarketType,
     pub bump: u8,
 }
 
@@ -718,28 +586,11 @@ pub enum MarketCategory {
     Other,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace, Debug)]
-pub enum MarketType {
-    Binary,
-    PriceOracle {
-        price_feed: Pubkey,
-        target_price: i64,
-        comparison: PriceComparison,
-    },
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace, Debug)]
-pub enum PriceComparison {
-    GreaterThan,
-    LessThan,
-    Equals,
-}
-
 #[error_code]
 pub enum PredictionError {
-    #[msg("Question is too long (max 200 characters)")]
+    #[msg("Question is too long (max 100 characters)")]
     QuestionTooLong,
-    #[msg("Description is too long (max 500 characters)")]
+    #[msg("Description is too long (max 200 characters)")]
     DescriptionTooLong,
     #[msg("End time must be in the future")]
     InvalidEndTime,
@@ -761,8 +612,6 @@ pub enum PredictionError {
     LosingBet,
     #[msg("No winning bets in this market")]
     NoWinningBets,
-    #[msg("Not an oracle market")]
-    NotOracleMarket,
     #[msg("Not the card owner")]
     NotCardOwner,
 }

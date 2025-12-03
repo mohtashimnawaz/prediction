@@ -3,10 +3,16 @@
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function Navbar() {
   const pathname = usePathname();
   const isActive = (path: string) => pathname === path;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <nav className="glass-strong border-b border-purple-500/20 sticky top-0 z-50">
@@ -23,9 +29,9 @@ export default function Navbar() {
             <div className="hidden md:flex space-x-2">
               {[
                 { href: '/markets', label: 'Markets', icon: '📊' },
+                { href: '/create', label: 'Create', icon: '➕' },
                 { href: '/cards', label: 'Cards', icon: '🃏' },
-                { href: '/battle', label: 'Battle', icon: '⚔️' },
-                { href: '/leaderboard', label: 'Leaderboard', icon: '🏆' }
+                { href: '/my-bets', label: 'My Bets', icon: '💰' }
               ].map(({ href, label, icon }) => (
                 <Link
                   key={href}
@@ -43,7 +49,9 @@ export default function Navbar() {
             </div>
           </div>
 
-          <WalletMultiButton className="!bg-gradient-to-r !from-purple-600 !to-blue-600 hover:!from-purple-700 hover:!to-blue-700 !transition-all !duration-300 !rounded-lg !shadow-lg hover:!shadow-purple-500/50" />
+          {mounted && (
+            <WalletMultiButton className="!bg-gradient-to-r !from-purple-600 !to-blue-600 hover:!from-purple-700 hover:!to-blue-700 !transition-all !duration-300 !rounded-lg !shadow-lg hover:!shadow-purple-500/50" />
+          )}
         </div>
       </div>
     </nav>

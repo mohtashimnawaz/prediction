@@ -1,3 +1,9 @@
 {
-  "/page": "app/page.js"
+  "/_not-found/page": "app/_not-found/page.js",
+  "/create/page": "app/create/page.js",
+  "/market/[id]/page": "app/market/[id]/page.js",
+  "/cards/page": "app/cards/page.js",
+  "/page": "app/page.js",
+  "/my-bets/page": "app/my-bets/page.js",
+  "/markets/page": "app/markets/page.js"
 }

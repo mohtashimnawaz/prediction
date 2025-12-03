@@ -2,6 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program, BN } from "@coral-xyz/anchor";
 import { Prediction } from "../target/types/prediction";
 import { PublicKey, Keypair, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from "@solana/spl-token";
 import { assert, expect } from "chai";
 
 describe("prediction", () => {
@@ -82,8 +83,7 @@ describe("prediction", () => {
         question,
         description,
         endTime,
-        { crypto: {} }, // MarketCategory::Crypto
-        { binary: {} }  // MarketType::Binary
+        { crypto: {} }  // MarketCategory::Crypto (removed MarketType parameter)
       )
       .accounts({
         market: marketPda,
@@ -337,7 +337,7 @@ describe("prediction", () => {
   });
 
   it("Registers a Card (mint_card)", async () => {
-    // Create a dummy mint pubkey to represent the NFT mint
+    // Create mint keypair for the NFT
     const mintKeypair = Keypair.generate();
 
     const [cardPda] = PublicKey.findProgramAddressSync(
@@ -345,19 +345,28 @@ describe("prediction", () => {
       program.programId
     );
 
+    // Derive the associated token account for the owner
+    const tokenAccount = await getAssociatedTokenAddress(
+      mintKeypair.publicKey,
+      bettor1.publicKey
+    );
+
     const multiplier = new BN(1500);
 
-    // Payer is the authority (provider wallet); owner is bettor1 and must sign
+    // Both payer (authority) and mint keypair must sign
     await program.methods
       .mintCard(5, 2, multiplier)
       .accounts({
         card: cardPda,
         mint: mintKeypair.publicKey,
+        tokenAccount: tokenAccount,
         payer: authority.publicKey,
         owner: bettor1.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       })
-      .signers([bettor1])
+      .signers([mintKeypair, bettor1])  // Both mint and owner must sign
       .rpc();
 
     const card = await program.account.card.fetch(cardPda);

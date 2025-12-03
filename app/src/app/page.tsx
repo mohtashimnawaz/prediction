@@ -32,14 +32,14 @@ export default function Home() {
               <div className="flex gap-6 justify-center">
                 <Link 
                   href="/cards"
-                  className="group px-10 py-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-xl font-bold text-lg transition-all duration-300 shadow-xl hover:shadow-purple-500/50 hover:scale-105"
+                  className="btn-primary group"
                 >
                   🃏 My Cards
                   <span className="inline-block group-hover:translate-x-1 transition-transform ml-2">→</span>
                 </Link>
                 <Link 
                   href="/battle"
-                  className="group px-10 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl font-bold text-lg transition-all duration-300 shadow-xl hover:shadow-blue-500/50 hover:scale-105"
+                  className="btn-primary group"
                 >
                   ⚔️ Enter Battle
                   <span className="inline-block group-hover:translate-x-1 transition-transform ml-2">→</span>
@@ -57,7 +57,7 @@ export default function Home() {
       {/* Features Grid */}
       <div className="container mx-auto px-4 py-16">
         <div className="grid md:grid-cols-3 gap-8 mb-20">
-          <div className="glass-strong rounded-2xl p-8 hover:scale-105 transition-transform duration-300 cursor-pointer border border-purple-500/20 hover:border-purple-500/50">
+          <div className="card border border-purple-500/20 hover:border-purple-500/50">
             <div className="text-5xl mb-6 animate-float">🃏</div>
             <h3 className="text-2xl font-bold mb-4 gradient-text">NFT Prediction Cards</h3>
             <p className="text-gray-300 leading-relaxed">
@@ -65,7 +65,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="glass-strong rounded-2xl p-8 hover:scale-105 transition-transform duration-300 cursor-pointer border border-blue-500/20 hover:border-blue-500/50" style={{ animationDelay: '0.1s' }}>
+          <div className="card border border-blue-500/20 hover:border-blue-500/50" style={{ animationDelay: '0.1s' }}>
             <div className="text-5xl mb-6 animate-float" style={{ animationDelay: '0.5s' }}>⚔️</div>
             <h3 className="text-2xl font-bold mb-4 gradient-text">On-Chain Battles</h3>
             <p className="text-gray-300 leading-relaxed">
@@ -73,7 +73,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="glass-strong rounded-2xl p-8 hover:scale-105 transition-transform duration-300 cursor-pointer border border-pink-500/20 hover:border-pink-500/50" style={{ animationDelay: '0.2s' }}>
+          <div className="card border border-pink-500/20 hover:border-pink-500/50" style={{ animationDelay: '0.2s' }}>
             <div className="text-5xl mb-6 animate-float" style={{ animationDelay: '1s' }}>📈</div>
             <h3 className="text-2xl font-bold mb-4 gradient-text">Living NFTs</h3>
             <p className="text-gray-300 leading-relaxed">
@@ -88,19 +88,19 @@ export default function Home() {
           <div className="relative z-10">
             <h2 className="text-4xl font-bold mb-10 gradient-text">Platform Stats</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              <div className="glass p-6 rounded-xl hover:scale-110 transition-transform duration-300">
+              <div className="stat-card">
                 <div className="text-4xl font-bold text-purple-400 mb-2">0</div>
                 <div className="text-gray-300 text-sm font-medium">Total Cards Minted</div>
               </div>
-              <div className="glass p-6 rounded-xl hover:scale-110 transition-transform duration-300">
+              <div className="stat-card">
                 <div className="text-4xl font-bold text-blue-400 mb-2">0</div>
                 <div className="text-gray-300 text-sm font-medium">Active Markets</div>
               </div>
-              <div className="glass p-6 rounded-xl hover:scale-110 transition-transform duration-300">
+              <div className="stat-card">
                 <div className="text-4xl font-bold text-green-400 mb-2">0</div>
                 <div className="text-gray-300 text-sm font-medium">Total Volume (SOL)</div>
               </div>
-              <div className="glass p-6 rounded-xl hover:scale-110 transition-transform duration-300">
+              <div className="stat-card">
                 <div className="text-4xl font-bold text-yellow-400 mb-2">0</div>
                 <div className="text-gray-300 text-sm font-medium">Battles Fought</div>
               </div>

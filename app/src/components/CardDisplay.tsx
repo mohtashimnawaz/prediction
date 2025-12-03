@@ -26,7 +26,7 @@ export default function CardDisplay({ mint, power, rarity, multiplier, wins, los
   return (
     <div
       onClick={onClick}
-      className={`group relative bg-gradient-to-br ${rarityInfo.bg} rounded-2xl border-2 ${rarityInfo.color} ${rarityInfo.glow} p-6 cursor-pointer hover:scale-105 hover:-rotate-1 transition-all duration-300 overflow-hidden`}
+      className={`card-interactive bg-gradient-to-br ${rarityInfo.bg} border-2 ${rarityInfo.color} ${rarityInfo.glow}`}
       style={{
         transform: 'perspective(1000px)',
         transformStyle: 'preserve-3d'
@@ -36,7 +36,7 @@ export default function CardDisplay({ mint, power, rarity, multiplier, wins, los
       <div className="absolute inset-0 shimmer opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
       
       {/* Rarity Badge */}
-      <div className="absolute top-3 right-3 px-4 py-1.5 glass-strong rounded-full text-xs font-bold flex items-center gap-1 animate-glow-pulse">
+      <div className="absolute top-3 right-3 badge-animated">
         <span>{rarityInfo.icon}</span>
         <span>{rarityInfo.name}</span>
       </div>
@@ -51,9 +51,9 @@ export default function CardDisplay({ mint, power, rarity, multiplier, wins, los
         <div className="flex justify-between text-sm p-2 glass rounded-lg">
           <span className="text-gray-300 font-medium">Power</span>
           <div className="flex items-center gap-2">
-            <div className="w-20 h-2 bg-gray-700/50 rounded-full overflow-hidden">
+            <div className="progress-bar w-20">
               <div 
-                className="h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-500"
+                className="progress-fill"
                 style={{ width: `${(power / 10) * 100}%` }}
               />
             </div>
@@ -63,7 +63,7 @@ export default function CardDisplay({ mint, power, rarity, multiplier, wins, los
         
         <div className="flex justify-between text-sm p-2 glass rounded-lg">
           <span className="text-gray-300 font-medium">Multiplier</span>
-          <span className="font-bold text-yellow-400 text-lg">{(multiplier / 1000).toFixed(2)}x</span>
+          <span className="gradient-text-gold text-lg font-bold">{(multiplier / 1000).toFixed(2)}x</span>
         </div>
 
         <div className="border-t border-white/10 pt-3 space-y-2">
