@@ -30,17 +30,47 @@ pub mod prediction {
         end_time: i64,
         category: MarketCategory,
         oracle_source: OracleSource,
+        oracle_data_type: OracleDataType,
+        // Price oracles
         price_feed: Option<Pubkey>,
         target_price: Option<i64>,
+        // Sports oracles
+        game_id: Option<String>,
+        target_spread: Option<i32>,
+        // Weather oracles
+        location: Option<String>,
+        weather_metric: Option<WeatherMetric>,
+        target_value: Option<i64>,
+        // Social/Custom oracles
+        data_identifier: Option<String>,
+        metric_type: Option<MetricType>,
+        threshold: Option<u64>,
     ) -> Result<()> {
         require!(question.len() <= 100, PredictionError::QuestionTooLong);
         require!(description.len() <= 200, PredictionError::DescriptionTooLong);
         require!(end_time > Clock::get()?.unix_timestamp, PredictionError::InvalidEndTime);
 
-        // Validate oracle configuration
-        if oracle_source == OracleSource::PythPrice {
-            require!(price_feed.is_some(), PredictionError::OracleConfigRequired);
-            require!(target_price.is_some(), PredictionError::OracleConfigRequired);
+        // Validate oracle configuration based on type
+        match oracle_data_type {
+            OracleDataType::Price => {
+                require!(price_feed.is_some(), PredictionError::OracleConfigRequired);
+                require!(target_price.is_some(), PredictionError::OracleConfigRequired);
+            },
+            OracleDataType::SportsScore | OracleDataType::SportsWinner => {
+                require!(game_id.is_some(), PredictionError::OracleConfigRequired);
+            },
+            OracleDataType::Weather => {
+                require!(location.is_some(), PredictionError::OracleConfigRequired);
+                require!(weather_metric.is_some(), PredictionError::OracleConfigRequired);
+                require!(target_value.is_some(), PredictionError::OracleConfigRequired);
+            },
+            OracleDataType::Social | OracleDataType::BoxOffice | OracleDataType::Custom => {
+                require!(data_identifier.is_some(), PredictionError::OracleConfigRequired);
+                require!(threshold.is_some(), PredictionError::OracleConfigRequired);
+            },
+            OracleDataType::None => {
+                // Manual market - no oracle validation needed
+            }
         }
 
         let market = &mut ctx.accounts.market;
@@ -59,9 +89,30 @@ pub mod prediction {
         
         // Oracle configuration
         market.oracle_source = oracle_source;
+        market.oracle_data_type = oracle_data_type;
+        
+        // Price oracle fields
         market.price_feed = price_feed;
         market.target_price = target_price;
-        market.strike_price = None; // Set at resolution time
+        market.strike_price = None;
+        
+        // Sports oracle fields
+        market.game_id = game_id;
+        market.team_a_score = None;
+        market.team_b_score = None;
+        market.target_spread = target_spread;
+        
+        // Weather oracle fields
+        market.location = location;
+        market.weather_metric = weather_metric.unwrap_or_default();
+        market.target_value = target_value;
+        market.recorded_value = None;
+        
+        // Social/Custom oracle fields
+        market.data_identifier = data_identifier;
+        market.metric_type = metric_type.unwrap_or_default();
+        market.threshold = threshold;
+        market.actual_value = None;
 
         // Update platform stats
         let platform = &mut ctx.accounts.platform;
@@ -175,6 +226,113 @@ pub mod prediction {
         // Determine outcome: YES if current price >= target price
         let target = market.target_price.unwrap();
         let outcome = current_price >= target;
+
+        market.resolved = true;
+        market.outcome = Some(outcome);
+
+        Ok(())
+    }
+
+    // Resolve sports market with oracle data
+    pub fn resolve_market_sports(
+        ctx: Context<ResolveMarketSports>,
+        team_a_score: u32,
+        team_b_score: u32,
+    ) -> Result<()> {
+        let market = &mut ctx.accounts.market;
+        require!(!market.resolved, PredictionError::MarketAlreadyResolved);
+        require!(
+            market.oracle_data_type == OracleDataType::SportsScore || 
+            market.oracle_data_type == OracleDataType::SportsWinner,
+            PredictionError::NotOracleMarket
+        );
+        require!(
+            Clock::get()?.unix_timestamp >= market.end_time,
+            PredictionError::MarketNotEnded
+        );
+
+        // Store actual scores
+        market.team_a_score = Some(team_a_score);
+        market.team_b_score = Some(team_b_score);
+
+        // Determine outcome based on market type
+        let outcome = if market.oracle_data_type == OracleDataType::SportsWinner {
+            // Simple winner: Team A wins
+            team_a_score > team_b_score
+        } else if let Some(spread) = market.target_spread {
+            // Spread betting: Team A covers spread
+            (team_a_score as i32 - team_b_score as i32) >= spread
+        } else {
+            // Over/Under total score
+            let total_score = team_a_score + team_b_score;
+            if let Some(target) = market.target_value {
+                total_score as i64 >= target
+            } else {
+                team_a_score > team_b_score
+            }
+        };
+
+        market.resolved = true;
+        market.outcome = Some(outcome);
+
+        Ok(())
+    }
+
+    // Resolve weather market with oracle data
+    pub fn resolve_market_weather(
+        ctx: Context<ResolveMarketWeather>,
+        recorded_value: i64,
+    ) -> Result<()> {
+        let market = &mut ctx.accounts.market;
+        require!(!market.resolved, PredictionError::MarketAlreadyResolved);
+        require!(
+            market.oracle_data_type == OracleDataType::Weather,
+            PredictionError::NotOracleMarket
+        );
+        require!(
+            Clock::get()?.unix_timestamp >= market.end_time,
+            PredictionError::MarketNotEnded
+        );
+
+        // Store recorded weather value
+        market.recorded_value = Some(recorded_value);
+
+        // Determine outcome: YES if recorded value >= target
+        let target = market.target_value
+            .ok_or(PredictionError::OracleConfigRequired)?;
+        let outcome = recorded_value >= target;
+
+        market.resolved = true;
+        market.outcome = Some(outcome);
+
+        Ok(())
+    }
+
+    // Resolve social/entertainment market with oracle data
+    pub fn resolve_market_social(
+        ctx: Context<ResolveMarketSocial>,
+        actual_value: u64,
+    ) -> Result<()> {
+        let market = &mut ctx.accounts.market;
+        require!(!market.resolved, PredictionError::MarketAlreadyResolved);
+        require!(
+            market.oracle_data_type == OracleDataType::Social ||
+            market.oracle_data_type == OracleDataType::BoxOffice ||
+            market.oracle_data_type == OracleDataType::Custom,
+            PredictionError::NotOracleMarket
+        );
+        require!(
+            Clock::get()?.unix_timestamp >= market.end_time,
+            PredictionError::MarketNotEnded
+        );
+
+        // Store actual value (followers, likes, box office, etc.)
+        market.actual_value = Some(actual_value);
+
+        // Determine outcome: YES if actual >= threshold
+        let threshold = market.threshold
+            .ok_or(PredictionError::OracleConfigRequired)?;
+        let outcome = actual_value >= threshold;
 
         market.resolved = true;
         market.outcome = Some(outcome);
@@ -479,6 +637,27 @@ pub struct ResolveMarketWithOracle<'info> {
 }
 
 #[derive(Accounts)]
+pub struct ResolveMarketSports<'info> {
+    #[account(mut)]
+    pub market: Account<'info, Market>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ResolveMarketWeather<'info> {
+    #[account(mut)]
+    pub market: Account<'info, Market>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ResolveMarketSocial<'info> {
+    #[account(mut)]
+    pub market: Account<'info, Market>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct ClaimWinnings<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
@@ -632,11 +811,36 @@ pub struct Market {
     pub total_no_amount: u64,
     pub category: MarketCategory,
     pub bump: u8,
-    // Oracle fields
+    
+    // Oracle configuration
     pub oracle_source: OracleSource,
+    pub oracle_data_type: OracleDataType,
+    
+    // Price-based oracles (Pyth, Chainlink, Switchboard)
     pub price_feed: Option<Pubkey>,
     pub target_price: Option<i64>,
     pub strike_price: Option<i64>,
+    
+    // Sports oracles
+    #[max_len(50)]
+    pub game_id: Option<String>,           // e.g., "LAL-GSW-2024-12-04"
+    pub team_a_score: Option<u32>,
+    pub team_b_score: Option<u32>,
+    pub target_spread: Option<i32>,        // Point spread or score threshold
+    
+    // Weather oracles
+    #[max_len(50)]
+    pub location: Option<String>,          // e.g., "New York, NY"
+    pub weather_metric: WeatherMetric,
+    pub target_value: Option<i64>,        // Temperature, precipitation, etc.
+    pub recorded_value: Option<i64>,      // Actual value at resolution
+    
+    // Social/Custom oracles
+    #[max_len(100)]
+    pub data_identifier: Option<String>,   // Tweet ID, movie ID, etc.
+    pub metric_type: MetricType,
+    pub threshold: Option<u64>,            // Follower count, box office $, etc.
+    pub actual_value: Option<u64>,         // Recorded value
 }
 
 #[account]
@@ -651,11 +855,52 @@ pub struct Bet {
     pub card_multiplier: u64,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace, Debug, Default)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace, Default, Debug)]
 pub enum OracleSource {
     #[default]
-    Manual,      // Manual resolution by creator
-    PythPrice,   // Pyth oracle price feed
+    Manual,              // Manual resolution by creator
+    PythPrice,           // Pyth Network price feeds (crypto, stocks, forex)
+    ChainlinkPrice,      // Chainlink price feeds
+    ChainlinkSports,     // Chainlink Sports data (game scores, winners)
+    ChainlinkWeather,    // Chainlink Weather data (temperature, precipitation)
+    SwitchboardPrice,    // Switchboard price feeds
+    SwitchboardCustom,   // Custom Switchboard feeds (social, entertainment)
+    CustomApi,           // Custom API endpoint with verification
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace, Default, Debug)]
+pub enum OracleDataType {
+    #[default]
+    None,           // Manual markets
+    Price,          // Crypto/stock/commodity prices
+    SportsScore,    // Sports game scores
+    SportsWinner,   // Tournament/game winner
+    Weather,        // Weather conditions
+    Social,         // Social media metrics
+    BoxOffice,      // Movie earnings
+    Custom,         // Custom data point
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace, Default, Debug)]
+pub enum WeatherMetric {
+    #[default]
+    None,
+    Temperature,     // In Fahrenheit * 100
+    Precipitation,   // In inches * 100
+    WindSpeed,       // In mph * 100
+    Humidity,        // Percentage * 100
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace, Default, Debug)]
+pub enum MetricType {
+    #[default]
+    None,
+    FollowerCount,   // Social media followers
+    LikeCount,       // Tweet/post likes
+    ViewCount,       // Video views
+    BoxOfficeGross,  // Movie earnings in cents
+    StreamRank,      // Streaming platform ranking
+    Custom,          // Custom metric
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace, Debug)]

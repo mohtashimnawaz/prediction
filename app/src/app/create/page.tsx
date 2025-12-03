@@ -24,6 +24,30 @@ const PYTH_FEEDS = {
   "ETH/USD": "EdVCmQ9FSPcVe5YySXDPCRmc8aDQLKJ9xvYBMZPie1Vw",
 };
 
+const ORACLE_TYPES = [
+  { value: "manual", label: "Manual", icon: "👤", description: "You resolve the outcome" },
+  { value: "price", label: "Price Feed", icon: "💰", description: "Crypto/stock prices (Pyth)" },
+  { value: "sports", label: "Sports", icon: "⚽", description: "Game scores & winners" },
+  { value: "weather", label: "Weather", icon: "🌤️", description: "Temperature, precipitation" },
+  { value: "social", label: "Social Media", icon: "📱", description: "Followers, likes, views" },
+  { value: "entertainment", label: "Entertainment", icon: "🎬", description: "Box office, streaming" },
+];
+
+const WEATHER_METRICS = [
+  { value: "temperature", label: "Temperature (°F)" },
+  { value: "precipitation", label: "Precipitation (inches)" },
+  { value: "windSpeed", label: "Wind Speed (mph)" },
+  { value: "humidity", label: "Humidity (%)" },
+];
+
+const SOCIAL_METRICS = [
+  { value: "followerCount", label: "Follower Count" },
+  { value: "likeCount", label: "Like Count" },
+  { value: "viewCount", label: "View Count" },
+  { value: "boxOfficeGross", label: "Box Office Gross ($)" },
+  { value: "streamRank", label: "Streaming Rank" },
+];
+
 export default function CreateMarketPage() {
   const program = useProgram();
   const { publicKey } = useWallet();
@@ -34,9 +58,21 @@ export default function CreateMarketPage() {
     description: "",
     category: "crypto",
     duration: 24,
-    oracleType: "manual" as "manual" | "pyth",
+    oracleType: "manual",
+    // Price oracle fields
     priceFeed: "",
     targetPrice: "",
+    // Sports oracle fields
+    gameId: "",
+    targetSpread: "",
+    // Weather oracle fields
+    location: "",
+    weatherMetric: "temperature",
+    targetValue: "",
+    // Social oracle fields
+    dataIdentifier: "",
+    socialMetric: "followerCount",
+    threshold: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -55,15 +91,50 @@ export default function CreateMarketPage() {
       const [marketPda] = getMarketPDA(publicKey, formData.question);
 
       const categoryObj = { [formData.category]: {} };
-      const oracleSource = formData.oracleType === "pyth" ? { pythPrice: {} } : { manual: {} };
       
-      const priceFeed = formData.oracleType === "pyth" && formData.priceFeed 
-        ? new PublicKey(formData.priceFeed) 
-        : null;
-      
-      const targetPrice = formData.oracleType === "pyth" && formData.targetPrice
-        ? new BN(parseFloat(formData.targetPrice) * 1e8) // Pyth uses 8 decimals
-        : null;
+      // Determine oracle source and data type
+      let oracleSource, oracleDataType;
+      let priceFeed = null, targetPrice = null;
+      let gameId = null, targetSpread = null;
+      let location = null, weatherMetric = null, targetValue = null;
+      let dataIdentifier = null, metricType = null, threshold = null;
+
+      switch (formData.oracleType) {
+        case "price":
+          oracleSource = { pythPrice: {} };
+          oracleDataType = { price: {} };
+          priceFeed = formData.priceFeed ? new PublicKey(formData.priceFeed) : null;
+          targetPrice = formData.targetPrice ? new BN(parseFloat(formData.targetPrice) * 1e8) : null;
+          break;
+          
+        case "sports":
+          oracleSource = { chainlinkSports: {} };
+          oracleDataType = { sportsScore: {} };
+          gameId = formData.gameId || null;
+          targetSpread = formData.targetSpread ? parseInt(formData.targetSpread) : null;
+          break;
+          
+        case "weather":
+          oracleSource = { chainlinkWeather: {} };
+          oracleDataType = { weather: {} };
+          location = formData.location || null;
+          weatherMetric = formData.weatherMetric ? { [formData.weatherMetric]: {} } : { none: {} };
+          targetValue = formData.targetValue ? new BN(parseFloat(formData.targetValue) * 100) : null;
+          break;
+          
+        case "social":
+        case "entertainment":
+          oracleSource = { switchboardCustom: {} };
+          oracleDataType = formData.socialMetric === "boxOfficeGross" ? { boxOffice: {} } : { social: {} };
+          dataIdentifier = formData.dataIdentifier || null;
+          metricType = formData.socialMetric ? { [formData.socialMetric]: {} } : { none: {} };
+          threshold = formData.threshold ? new BN(formData.threshold) : null;
+          break;
+          
+        default: // manual
+          oracleSource = { manual: {} };
+          oracleDataType = { none: {} };
+      }
 
       await program.methods
         .createMarket(
@@ -72,8 +143,17 @@ export default function CreateMarketPage() {
           new BN(endTime),
           categoryObj,
           oracleSource,
+          oracleDataType,
           priceFeed,
-          targetPrice
+          targetPrice,
+          gameId,
+          targetSpread,
+          location,
+          weatherMetric,
+          targetValue,
+          dataIdentifier,
+          metricType,
+          threshold
         )
         .accounts({
           market: marketPda,
@@ -172,37 +252,35 @@ export default function CreateMarketPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-2">Resolution Type *</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, oracleType: "manual" })}
-              className={`p-4 rounded-lg border transition-all ${
-                formData.oracleType === "manual"
-                  ? "border-primary-500 bg-primary-500/20"
-                  : "border-white/10 bg-white/5 hover:bg-white/10"
-              }`}
-            >
-              <div className="font-medium">Manual</div>
-              <div className="text-xs text-gray-400 mt-1">You resolve the outcome</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, oracleType: "pyth" })}
-              className={`p-4 rounded-lg border transition-all ${
-                formData.oracleType === "pyth"
-                  ? "border-primary-500 bg-primary-500/20"
-                  : "border-white/10 bg-white/5 hover:bg-white/10"
-              }`}
-            >
-              <div className="font-medium">Oracle (Pyth)</div>
-              <div className="text-xs text-gray-400 mt-1">Auto-resolve with price feed</div>
-            </button>
+          <label className="block text-sm font-medium mb-3">Resolution Type *</label>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {ORACLE_TYPES.map((type) => (
+              <button
+                key={type.value}
+                type="button"
+                onClick={() => setFormData({ ...formData, oracleType: type.value })}
+                className={`p-4 rounded-lg border transition-all text-left ${
+                  formData.oracleType === type.value
+                    ? "border-primary-500 bg-primary-500/20 scale-105"
+                    : "border-white/10 bg-white/5 hover:bg-white/10 hover:scale-102"
+                }`}
+              >
+                <div className="text-2xl mb-2">{type.icon}</div>
+                <div className="font-semibold text-sm">{type.label}</div>
+                <div className="text-xs text-gray-400 mt-1">{type.description}</div>
+              </button>
+            ))}
           </div>
         </div>
 
-        {formData.oracleType === "pyth" && (
-          <>
+        {/* Price Oracle Fields */}
+        {formData.oracleType === "price" && (
+          <div className="space-y-4 p-4 rounded-lg bg-blue-500/5 border border-blue-500/20">
+            <div className="flex items-center gap-2 text-blue-400 font-semibold">
+              <span>💰</span>
+              <span>Price Feed Configuration</span>
+            </div>
+            
             <div>
               <label className="block text-sm font-medium mb-2">Price Feed *</label>
               <select
@@ -236,7 +314,162 @@ export default function CreateMarketPage() {
                 Market resolves YES if price ≥ target, otherwise NO
               </p>
             </div>
-          </>
+          </div>
+        )}
+
+        {/* Sports Oracle Fields */}
+        {formData.oracleType === "sports" && (
+          <div className="space-y-4 p-4 rounded-lg bg-green-500/5 border border-green-500/20">
+            <div className="flex items-center gap-2 text-green-400 font-semibold">
+              <span>⚽</span>
+              <span>Sports Event Configuration</span>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Game ID *</label>
+              <input
+                type="text"
+                value={formData.gameId}
+                onChange={(e) => setFormData({ ...formData, gameId: e.target.value })}
+                placeholder="e.g., LAL-GSW-2024-12-04"
+                maxLength={50}
+                required
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:border-primary-500 focus:outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Format: TEAM1-TEAM2-YYYY-MM-DD
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Point Spread (optional)</label>
+              <input
+                type="number"
+                value={formData.targetSpread}
+                onChange={(e) => setFormData({ ...formData, targetSpread: e.target.value })}
+                placeholder="e.g., 7 (Team A by 7 points)"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:border-primary-500 focus:outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Leave empty for simple winner prediction
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Weather Oracle Fields */}
+        {formData.oracleType === "weather" && (
+          <div className="space-y-4 p-4 rounded-lg bg-cyan-500/5 border border-cyan-500/20">
+            <div className="flex items-center gap-2 text-cyan-400 font-semibold">
+              <span>🌤️</span>
+              <span>Weather Data Configuration</span>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Location *</label>
+              <input
+                type="text"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder="e.g., New York, NY"
+                maxLength={50}
+                required
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:border-primary-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Weather Metric *</label>
+              <select
+                value={formData.weatherMetric}
+                onChange={(e) => setFormData({ ...formData, weatherMetric: e.target.value })}
+                required
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:border-primary-500 focus:outline-none"
+              >
+                {WEATHER_METRICS.map((metric) => (
+                  <option key={metric.value} value={metric.value}>
+                    {metric.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Target Value *</label>
+              <input
+                type="number"
+                value={formData.targetValue}
+                onChange={(e) => setFormData({ ...formData, targetValue: e.target.value })}
+                placeholder="e.g., 90 (for 90°F)"
+                step="0.01"
+                required
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:border-primary-500 focus:outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Market resolves YES if value ≥ target, otherwise NO
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Social/Entertainment Oracle Fields */}
+        {(formData.oracleType === "social" || formData.oracleType === "entertainment") && (
+          <div className="space-y-4 p-4 rounded-lg bg-purple-500/5 border border-purple-500/20">
+            <div className="flex items-center gap-2 text-purple-400 font-semibold">
+              <span>{formData.oracleType === "social" ? "📱" : "🎬"}</span>
+              <span>{formData.oracleType === "social" ? "Social Media" : "Entertainment"} Configuration</span>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Data Identifier *</label>
+              <input
+                type="text"
+                value={formData.dataIdentifier}
+                onChange={(e) => setFormData({ ...formData, dataIdentifier: e.target.value })}
+                placeholder={formData.oracleType === "social" ? "e.g., @elonmusk or tweet ID" : "e.g., avengers-6-2025"}
+                maxLength={100}
+                required
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:border-primary-500 focus:outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.oracleType === "social" 
+                  ? "Twitter handle, tweet ID, or YouTube video ID" 
+                  : "Movie ID, show ID, or custom identifier"}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Metric Type *</label>
+              <select
+                value={formData.socialMetric}
+                onChange={(e) => setFormData({ ...formData, socialMetric: e.target.value })}
+                required
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:border-primary-500 focus:outline-none"
+              >
+                {SOCIAL_METRICS.map((metric) => (
+                  <option key={metric.value} value={metric.value}>
+                    {metric.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Threshold *</label>
+              <input
+                type="number"
+                value={formData.threshold}
+                onChange={(e) => setFormData({ ...formData, threshold: e.target.value })}
+                placeholder="e.g., 1000000 (1M followers)"
+                min="0"
+                required
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:border-primary-500 focus:outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Market resolves YES if value ≥ threshold, otherwise NO
+              </p>
+            </div>
+          </div>
         )}
 
         {error && (

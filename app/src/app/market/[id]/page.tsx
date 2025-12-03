@@ -18,10 +18,23 @@ interface MarketData {
   category: string;
   authority: string;
   creator: string;
-  oracleSource: "manual" | "pythPrice";
+  oracleSource: string;
+  oracleDataType: string;
   priceFeed?: string;
   targetPrice?: number;
   strikePrice?: number;
+  gameId?: string;
+  teamAScore?: number;
+  teamBScore?: number;
+  targetSpread?: number;
+  location?: string;
+  weatherMetric?: string;
+  targetValue?: number;
+  recordedValue?: number;
+  dataIdentifier?: string;
+  metricType?: string;
+  threshold?: number;
+  actualValue?: number;
 }
 
 export default function MarketPage({ params }: { params: { id: string } }) {
@@ -45,7 +58,10 @@ export default function MarketPage({ params }: { params: { id: string } }) {
     async function fetchData() {
       try {
         const marketAccount = await program.account.market.fetch(marketPubkey);
-        const oracleSource = marketAccount.oracleSource.manual ? "manual" : "pythPrice";
+        const oracleSourceKey = Object.keys(marketAccount.oracleSource)[0];
+        const oracleDataTypeKey = Object.keys(marketAccount.oracleDataType)[0];
+        const weatherMetricKey = marketAccount.weatherMetric ? Object.keys(marketAccount.weatherMetric)[0] : undefined;
+        const metricTypeKey = marketAccount.metricType ? Object.keys(marketAccount.metricType)[0] : undefined;
         
         setMarket({
           question: marketAccount.question,
@@ -59,10 +75,23 @@ export default function MarketPage({ params }: { params: { id: string } }) {
           category: Object.keys(marketAccount.category)[0],
           authority: marketAccount.authority.toString(),
           creator: marketAccount.creator.toString(),
-          oracleSource,
+          oracleSource: oracleSourceKey,
+          oracleDataType: oracleDataTypeKey,
           priceFeed: marketAccount.priceFeed?.toString(),
           targetPrice: marketAccount.targetPrice?.toNumber(),
           strikePrice: marketAccount.strikePrice?.toNumber(),
+          gameId: marketAccount.gameId,
+          teamAScore: marketAccount.teamAScore,
+          teamBScore: marketAccount.teamBScore,
+          targetSpread: marketAccount.targetSpread,
+          location: marketAccount.location,
+          weatherMetric: weatherMetricKey,
+          targetValue: marketAccount.targetValue?.toNumber(),
+          recordedValue: marketAccount.recordedValue?.toNumber(),
+          dataIdentifier: marketAccount.dataIdentifier,
+          metricType: metricTypeKey,
+          threshold: marketAccount.threshold?.toNumber(),
+          actualValue: marketAccount.actualValue?.toNumber(),
         });
 
         if (publicKey) {
@@ -160,6 +189,74 @@ export default function MarketPage({ params }: { params: { id: string } }) {
         .accounts({
           market: marketPubkey,
           priceFeed: priceFeedPubkey,
+        })
+        .rpc();
+
+      alert("Market resolved successfully!");
+      window.location.reload();
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || "Failed to resolve market");
+    } finally {
+      setResolving(false);
+    }
+  };
+
+  const handleResolveSports = async (teamAScore: number, teamBScore: number) => {
+    if (!program || !publicKey) return;
+
+    setResolving(true);
+    try {
+      await program.methods
+        .resolveMarketSports(teamAScore, teamBScore)
+        .accounts({
+          market: marketPubkey,
+          authority: publicKey,
+        })
+        .rpc();
+
+      alert("Market resolved successfully!");
+      window.location.reload();
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || "Failed to resolve market");
+    } finally {
+      setResolving(false);
+    }
+  };
+
+  const handleResolveWeather = async (recordedValue: number) => {
+    if (!program || !publicKey) return;
+
+    setResolving(true);
+    try {
+      await program.methods
+        .resolveMarketWeather(new BN(recordedValue * 100))
+        .accounts({
+          market: marketPubkey,
+          authority: publicKey,
+        })
+        .rpc();
+
+      alert("Market resolved successfully!");
+      window.location.reload();
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || "Failed to resolve market");
+    } finally {
+      setResolving(false);
+    }
+  };
+
+  const handleResolveSocial = async (actualValue: number) => {
+    if (!program || !publicKey) return;
+
+    setResolving(true);
+    try {
+      await program.methods
+        .resolveMarketSocial(new BN(actualValue))
+        .accounts({
+          market: marketPubkey,
           authority: publicKey,
         })
         .rpc();
@@ -238,16 +335,17 @@ export default function MarketPage({ params }: { params: { id: string } }) {
             <h1 className="text-3xl font-bold mb-4">{market.question}</h1>
             <p className="text-gray-400 mb-6">{market.description}</p>
 
-            {market.oracleSource === "pythPrice" && (
+            {/* Price Oracle Info */}
+            {market.oracleDataType === "price" && (
               <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xl">🔮</span>
-                  <span className="font-semibold text-blue-400">Oracle-Powered Market</span>
+                  <span className="text-xl">💰</span>
+                  <span className="font-semibold text-blue-400">Price Oracle Market</span>
                 </div>
                 <div className="text-sm space-y-1">
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Resolution:</span>
-                    <span className="font-medium">Pyth Price Feed</span>
+                    <span className="text-gray-400">Oracle:</span>
+                    <span className="font-medium">Pyth Network</span>
                   </div>
                   {market.targetPrice && (
                     <div className="flex justify-between">
@@ -261,9 +359,110 @@ export default function MarketPage({ params }: { params: { id: string } }) {
                       <span className="font-medium text-green-400">${(market.strikePrice / 1e8).toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="text-xs text-gray-500 mt-2">
-                    This market will be automatically resolved by Pyth oracle when it ends.
-                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sports Oracle Info */}
+            {(market.oracleDataType === "sportsScore" || market.oracleDataType === "sportsWinner") && (
+              <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">⚽</span>
+                  <span className="font-semibold text-green-400">Sports Oracle Market</span>
+                </div>
+                <div className="text-sm space-y-1">
+                  {market.gameId && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Game:</span>
+                      <span className="font-medium">{market.gameId}</span>
+                    </div>
+                  )}
+                  {market.targetSpread && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Spread:</span>
+                      <span className="font-medium">{market.targetSpread} points</span>
+                    </div>
+                  )}
+                  {market.resolved && market.teamAScore !== undefined && market.teamBScore !== undefined && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Final Score:</span>
+                      <span className="font-medium text-green-400">{market.teamAScore} - {market.teamBScore}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Weather Oracle Info */}
+            {market.oracleDataType === "weather" && (
+              <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">🌤️</span>
+                  <span className="font-semibold text-cyan-400">Weather Oracle Market</span>
+                </div>
+                <div className="text-sm space-y-1">
+                  {market.location && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Location:</span>
+                      <span className="font-medium">{market.location}</span>
+                    </div>
+                  )}
+                  {market.weatherMetric && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Metric:</span>
+                      <span className="font-medium capitalize">{market.weatherMetric}</span>
+                    </div>
+                  )}
+                  {market.targetValue && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Target Value:</span>
+                      <span className="font-medium">{(market.targetValue / 100).toFixed(1)}</span>
+                    </div>
+                  )}
+                  {market.resolved && market.recordedValue !== undefined && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Recorded Value:</span>
+                      <span className="font-medium text-green-400">{(market.recordedValue / 100).toFixed(1)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Social/Entertainment Oracle Info */}
+            {(market.oracleDataType === "social" || market.oracleDataType === "boxOffice") && (
+              <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">{market.oracleDataType === "social" ? "📱" : "🎬"}</span>
+                  <span className="font-semibold text-purple-400">
+                    {market.oracleDataType === "social" ? "Social Media" : "Entertainment"} Oracle Market
+                  </span>
+                </div>
+                <div className="text-sm space-y-1">
+                  {market.dataIdentifier && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Identifier:</span>
+                      <span className="font-medium">{market.dataIdentifier}</span>
+                    </div>
+                  )}
+                  {market.metricType && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Metric:</span>
+                      <span className="font-medium capitalize">{market.metricType.replace(/([A-Z])/g, ' $1').trim()}</span>
+                    </div>
+                  )}
+                  {market.threshold && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Threshold:</span>
+                      <span className="font-medium">{market.threshold.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {market.resolved && market.actualValue !== undefined && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Actual Value:</span>
+                      <span className="font-medium text-green-400">{market.actualValue.toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -419,17 +618,125 @@ export default function MarketPage({ params }: { params: { id: string } }) {
             </div>
           )}
 
-          {!isActive && !market.resolved && market.oracleSource === "pythPrice" && publicKey && (
+          {/* Price Oracle Resolution */}
+          {!isActive && !market.resolved && market.oracleDataType === "price" && market.priceFeed && publicKey && (
             <div className="card sticky top-20">
               <div className="flex items-center gap-2 mb-4">
-                <span className="text-2xl">🔮</span>
-                <h3 className="text-lg font-semibold">Oracle Resolution</h3>
+                <span className="text-2xl">💰</span>
+                <h3 className="text-lg font-semibold">Price Oracle Resolution</h3>
               </div>
               <p className="text-sm text-gray-400 mb-4">
-                This market can now be resolved by anyone using the Pyth price feed.
+                This market can be resolved using the Pyth price feed.
               </p>
               <button
                 onClick={handleResolveOracle}
+                disabled={resolving}
+                className="btn-primary w-full"
+              >
+                {resolving ? "Resolving..." : "Resolve with Oracle"}
+              </button>
+            </div>
+          )}
+
+          {/* Sports Oracle Resolution */}
+          {!isActive && !market.resolved && (market.oracleDataType === "sportsScore" || market.oracleDataType === "sportsWinner") && publicKey && (
+            <div className="card sticky top-20">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-2xl">⚽</span>
+                <h3 className="text-lg font-semibold">Sports Resolution</h3>
+              </div>
+              <p className="text-sm text-gray-400 mb-4">
+                Enter the final scores to resolve this market.
+              </p>
+              <div className="space-y-3 mb-4">
+                <input
+                  type="number"
+                  id="teamAScore"
+                  placeholder="Team A Score"
+                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg"
+                />
+                <input
+                  type="number"
+                  id="teamBScore"
+                  placeholder="Team B Score"
+                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  const teamA = parseInt((document.getElementById('teamAScore') as HTMLInputElement).value);
+                  const teamB = parseInt((document.getElementById('teamBScore') as HTMLInputElement).value);
+                  if (!isNaN(teamA) && !isNaN(teamB)) {
+                    handleResolveSports(teamA, teamB);
+                  }
+                }}
+                disabled={resolving}
+                className="btn-primary w-full"
+              >
+                {resolving ? "Resolving..." : "Resolve Market"}
+              </button>
+            </div>
+          )}
+
+          {/* Weather Oracle Resolution */}
+          {!isActive && !market.resolved && market.oracleDataType === "weather" && publicKey && (
+            <div className="card sticky top-20">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-2xl">🌤️</span>
+                <h3 className="text-lg font-semibold">Weather Resolution</h3>
+              </div>
+              <p className="text-sm text-gray-400 mb-4">
+                Enter the recorded {market.weatherMetric} value.
+              </p>
+              <div className="mb-4">
+                <input
+                  type="number"
+                  id="weatherValue"
+                  placeholder={`e.g., 85 ${market.weatherMetric === 'temperature' ? '°F' : ''}`}
+                  step="0.1"
+                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  const value = parseFloat((document.getElementById('weatherValue') as HTMLInputElement).value);
+                  if (!isNaN(value)) {
+                    handleResolveWeather(value);
+                  }
+                }}
+                disabled={resolving}
+                className="btn-primary w-full"
+              >
+                {resolving ? "Resolving..." : "Resolve Market"}
+              </button>
+            </div>
+          )}
+
+          {/* Social/Entertainment Oracle Resolution */}
+          {!isActive && !market.resolved && (market.oracleDataType === "social" || market.oracleDataType === "boxOffice") && publicKey && (
+            <div className="card sticky top-20">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-2xl">{market.oracleDataType === "social" ? "📱" : "🎬"}</span>
+                <h3 className="text-lg font-semibold">{market.oracleDataType === "social" ? "Social Media" : "Entertainment"} Resolution</h3>
+              </div>
+              <p className="text-sm text-gray-400 mb-4">
+                Enter the actual {market.metricType?.replace(/([A-Z])/g, ' $1').toLowerCase()} value.
+              </p>
+              <div className="mb-4">
+                <input
+                  type="number"
+                  id="socialValue"
+                  placeholder="e.g., 1000000"
+                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  const value = parseInt((document.getElementById('socialValue') as HTMLInputElement).value);
+                  if (!isNaN(value)) {
+                    handleResolveSocial(value);
+                  }
+                }}
                 disabled={resolving}
                 className="btn-primary w-full"
               >

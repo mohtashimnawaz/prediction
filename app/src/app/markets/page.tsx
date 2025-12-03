@@ -16,10 +16,22 @@ interface Market {
   totalYesAmount: number;
   totalNoAmount: number;
   category: string;
-  oracleSource: "manual" | "pythPrice";
+  oracleSource: string;
+  oracleDataType: string;
   priceFeed?: string;
   targetPrice?: number;
   strikePrice?: number;
+  gameId?: string;
+  teamAScore?: number;
+  teamBScore?: number;
+  location?: string;
+  weatherMetric?: string;
+  targetValue?: number;
+  recordedValue?: number;
+  dataIdentifier?: string;
+  metricType?: string;
+  threshold?: number;
+  actualValue?: number;
 }
 
 export default function MarketsPage() {
@@ -36,7 +48,12 @@ export default function MarketsPage() {
       try {
         const accounts = await program.account.market.all();
         const formatted = accounts.map((acc: any) => {
-          const oracleSource = acc.account.oracleSource.manual ? "manual" : "pythPrice";
+          // Parse oracle source
+          const oracleSourceKey = Object.keys(acc.account.oracleSource)[0];
+          const oracleDataTypeKey = Object.keys(acc.account.oracleDataType)[0];
+          const weatherMetricKey = acc.account.weatherMetric ? Object.keys(acc.account.weatherMetric)[0] : undefined;
+          const metricTypeKey = acc.account.metricType ? Object.keys(acc.account.metricType)[0] : undefined;
+          
           return {
             publicKey: acc.publicKey.toString(),
             question: acc.account.question,
@@ -47,10 +64,22 @@ export default function MarketsPage() {
             totalYesAmount: acc.account.totalYesAmount.toNumber(),
             totalNoAmount: acc.account.totalNoAmount.toNumber(),
             category: Object.keys(acc.account.category)[0],
-            oracleSource,
+            oracleSource: oracleSourceKey,
+            oracleDataType: oracleDataTypeKey,
             priceFeed: acc.account.priceFeed?.toString(),
             targetPrice: acc.account.targetPrice?.toNumber(),
             strikePrice: acc.account.strikePrice?.toNumber(),
+            gameId: acc.account.gameId,
+            teamAScore: acc.account.teamAScore,
+            teamBScore: acc.account.teamBScore,
+            location: acc.account.location,
+            weatherMetric: weatherMetricKey,
+            targetValue: acc.account.targetValue?.toNumber(),
+            recordedValue: acc.account.recordedValue?.toNumber(),
+            dataIdentifier: acc.account.dataIdentifier,
+            metricType: metricTypeKey,
+            threshold: acc.account.threshold?.toNumber(),
+            actualValue: acc.account.actualValue?.toNumber(),
           };
         });
         setMarkets(formatted);
@@ -93,6 +122,37 @@ export default function MarketsPage() {
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     if (days > 0) return `${days}d ${hours}h`;
     return `${hours}h`;
+  };
+
+  const getOracleBadge = (market: Market) => {
+    const badges: Record<string, { icon: string; label: string; color: string }> = {
+      manual: { icon: "👤", label: "Manual", color: "gray" },
+      pythPrice: { icon: "💰", label: "Price Oracle", color: "blue" },
+      chainlinkPrice: { icon: "💰", label: "Price Oracle", color: "blue" },
+      chainlinkSports: { icon: "⚽", label: "Sports Oracle", color: "green" },
+      chainlinkWeather: { icon: "🌤️", label: "Weather Oracle", color: "cyan" },
+      switchboardPrice: { icon: "💰", label: "Price Oracle", color: "blue" },
+      switchboardCustom: { icon: "📊", label: "Custom Oracle", color: "purple" },
+      customApi: { icon: "🔗", label: "API Oracle", color: "orange" },
+    };
+    return badges[market.oracleSource] || badges.manual;
+  };
+
+  const getOracleDetails = (market: Market) => {
+    switch (market.oracleDataType) {
+      case "price":
+        return market.targetPrice ? `Target: $${(market.targetPrice / 1e8).toFixed(2)}` : null;
+      case "sportsScore":
+      case "sportsWinner":
+        return market.gameId ? `Game: ${market.gameId}` : null;
+      case "weather":
+        return market.location ? `Location: ${market.location}` : null;
+      case "social":
+      case "boxOffice":
+        return market.threshold ? `Threshold: ${market.threshold.toLocaleString()}` : null;
+      default:
+        return null;
+    }
   };
 
   if (!publicKey) {
@@ -160,6 +220,8 @@ export default function MarketsPage() {
           {filteredMarkets.map((market) => {
             const total = market.totalYesAmount + market.totalNoAmount;
             const yesPercentage = total > 0 ? (market.totalYesAmount / total) * 100 : 50;
+            const oracleBadge = getOracleBadge(market);
+            const oracleDetails = getOracleDetails(market);
 
             return (
               <Link
@@ -172,10 +234,16 @@ export default function MarketsPage() {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex flex-col gap-2">
                       <div className="text-sm font-bold uppercase tracking-wider text-purple-400">{market.category}</div>
-                      {market.oracleSource === "pythPrice" && (
-                        <span className="text-xs px-2 py-1 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 w-fit">
-                          🔮 Oracle
-                        </span>
+                      {market.oracleSource !== "manual" && (
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-xs px-2 py-1 rounded bg-${oracleBadge.color}-500/20 text-${oracleBadge.color}-400 border border-${oracleBadge.color}-500/30 w-fit flex items-center gap-1`}>
+                            <span>{oracleBadge.icon}</span>
+                            <span>{oracleBadge.label}</span>
+                          </span>
+                        </div>
+                      )}
+                      {oracleDetails && (
+                        <div className="text-xs text-gray-500">{oracleDetails}</div>
                       )}
                     </div>
                     {market.resolved ? (
