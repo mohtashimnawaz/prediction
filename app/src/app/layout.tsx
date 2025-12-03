@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import '../styles/globals.css';
 import WalletContextProvider from '@/components/WalletContextProvider';
-import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 import dynamic from 'next/dynamic';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -22,8 +22,11 @@ const DynamicNavbar = dynamic(() => import('@/components/Navbar'), {
 });
 
 export const metadata: Metadata = {
-  title: 'On-Chain Social Prediction Arena',
-  description: 'Battle with NFT prediction cards on Solana',
+  title: 'Prediction Arena - NFT Prediction Markets on Solana',
+  description: 'The first gamified prediction market on Solana. Collect NFT cards, battle with unique traits, and watch your cards evolve with every win.',
+  keywords: ['Solana', 'Prediction Market', 'NFT', 'Web3', 'Blockchain', 'Betting', 'Cards'],
+  viewport: 'width=device-width, initial-scale=1',
+  themeColor: '#9333ea',
 };
 
 export default function RootLayout({
@@ -39,6 +42,7 @@ export default function RootLayout({
           <main className="min-h-screen bg-gradient-to-b from-black via-purple-900/10 to-black">
             {children}
           </main>
+          <Footer />
         </WalletContextProvider>
       </body>
     </html>

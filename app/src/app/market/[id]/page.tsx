@@ -18,6 +18,10 @@ interface MarketData {
   category: string;
   authority: string;
   creator: string;
+  oracleSource: "manual" | "pythPrice";
+  priceFeed?: string;
+  targetPrice?: number;
+  strikePrice?: number;
 }
 
 export default function MarketPage({ params }: { params: { id: string } }) {
@@ -31,6 +35,7 @@ export default function MarketPage({ params }: { params: { id: string } }) {
   const [betSide, setBetSide] = useState<boolean>(true);
   const [placing, setPlacing] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const [resolving, setResolving] = useState(false);
 
   const marketPubkey = new PublicKey(params.id);
 
@@ -40,6 +45,7 @@ export default function MarketPage({ params }: { params: { id: string } }) {
     async function fetchData() {
       try {
         const marketAccount = await program.account.market.fetch(marketPubkey);
+        const oracleSource = marketAccount.oracleSource.manual ? "manual" : "pythPrice";
         
         setMarket({
           question: marketAccount.question,
@@ -53,6 +59,10 @@ export default function MarketPage({ params }: { params: { id: string } }) {
           category: Object.keys(marketAccount.category)[0],
           authority: marketAccount.authority.toString(),
           creator: marketAccount.creator.toString(),
+          oracleSource,
+          priceFeed: marketAccount.priceFeed?.toString(),
+          targetPrice: marketAccount.targetPrice?.toNumber(),
+          strikePrice: marketAccount.strikePrice?.toNumber(),
         });
 
         if (publicKey) {
@@ -138,10 +148,42 @@ export default function MarketPage({ params }: { params: { id: string } }) {
     }
   };
 
+  const handleResolveOracle = async () => {
+    if (!program || !publicKey || !market?.priceFeed) return;
+
+    setResolving(true);
+    try {
+      const priceFeedPubkey = new PublicKey(market.priceFeed);
+
+      await program.methods
+        .resolveMarketWithOracle()
+        .accounts({
+          market: marketPubkey,
+          priceFeed: priceFeedPubkey,
+          authority: publicKey,
+        })
+        .rpc();
+
+      alert("Market resolved successfully!");
+      window.location.reload();
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || "Failed to resolve market");
+    } finally {
+      setResolving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
-        <div className="animate-spin text-4xl">⏳</div>
+        <div className="text-center space-y-4">
+          <div className="relative w-20 h-20 mx-auto">
+            <div className="absolute inset-0 border-4 border-purple-500/30 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-t-purple-500 rounded-full animate-spin"></div>
+          </div>
+          <p className="text-gray-400 animate-pulse">Loading market details...</p>
+        </div>
       </div>
     );
   }
@@ -196,16 +238,48 @@ export default function MarketPage({ params }: { params: { id: string } }) {
             <h1 className="text-3xl font-bold mb-4">{market.question}</h1>
             <p className="text-gray-400 mb-6">{market.description}</p>
 
+            {market.oracleSource === "pythPrice" && (
+              <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">🔮</span>
+                  <span className="font-semibold text-blue-400">Oracle-Powered Market</span>
+                </div>
+                <div className="text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Resolution:</span>
+                    <span className="font-medium">Pyth Price Feed</span>
+                  </div>
+                  {market.targetPrice && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Target Price:</span>
+                      <span className="font-medium">${(market.targetPrice / 1e8).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {market.strikePrice && market.resolved && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Strike Price:</span>
+                      <span className="font-medium text-green-400">${(market.strikePrice / 1e8).toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="text-xs text-gray-500 mt-2">
+                    This market will be automatically resolved by Pyth oracle when it ends.
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="stat-card">
-                <div className="text-sm text-gray-400">Total Pool</div>
-                <div className="text-2xl font-bold">
+              <div className="stat-card bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20">
+                <div className="text-3xl mb-2">💰</div>
+                <div className="text-xs text-gray-400 uppercase tracking-wide">Total Pool</div>
+                <div className="text-2xl font-bold text-yellow-400">
                   {(total / LAMPORTS_PER_SOL).toFixed(2)} SOL
                 </div>
               </div>
-              <div className="stat-card">
-                <div className="text-sm text-gray-400">Ends</div>
-                <div className="text-xl font-bold">
+              <div className="stat-card bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20">
+                <div className="text-3xl mb-2">⏰</div>
+                <div className="text-xs text-gray-400 uppercase tracking-wide">Ends</div>
+                <div className="text-xl font-bold text-blue-400">
                   {new Date(market.endTime * 1000).toLocaleDateString()}
                 </div>
               </div>
@@ -282,52 +356,85 @@ export default function MarketPage({ params }: { params: { id: string } }) {
             <div className="card sticky top-20">
               <h3 className="text-lg font-semibold mb-4">Place Your Bet</h3>
 
-              <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className="grid grid-cols-2 gap-3 mb-4">
                 <button
                   onClick={() => setBetSide(true)}
-                  className={`p-4 rounded-lg border-2 transition-all ${
+                  className={`p-5 rounded-xl border-2 transition-all duration-300 group ${
                     betSide
-                      ? "border-green-500 bg-green-500/20 text-green-400"
-                      : "border-white/10 bg-white/5 hover:bg-white/10"
+                      ? "border-green-500 bg-gradient-to-br from-green-500/20 to-emerald-500/20 text-green-400 shadow-glow-green scale-105"
+                      : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-green-500/30"
                   }`}
                 >
-                  <div className="text-2xl mb-1">✅</div>
-                  <div className="font-bold">YES</div>
+                  <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">✅</div>
+                  <div className="font-bold text-lg">YES</div>
                 </button>
                 <button
                   onClick={() => setBetSide(false)}
-                  className={`p-4 rounded-lg border-2 transition-all ${
+                  className={`p-5 rounded-xl border-2 transition-all duration-300 group ${
                     !betSide
-                      ? "border-red-500 bg-red-500/20 text-red-400"
-                      : "border-white/10 bg-white/5 hover:bg-white/10"
+                      ? "border-red-500 bg-gradient-to-br from-red-500/20 to-rose-500/20 text-red-400 shadow-glow scale-105"
+                      : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-red-500/30"
                   }`}
                 >
-                  <div className="text-2xl mb-1">❌</div>
-                  <div className="font-bold">NO</div>
+                  <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">❌</div>
+                  <div className="font-bold text-lg">NO</div>
                 </button>
               </div>
 
-              <input
-                type="number"
-                value={betAmount}
-                onChange={(e) => setBetAmount(e.target.value)}
-                placeholder="Amount in SOL"
-                step="0.1"
-                min="0.01"
-                className="w-full px-4 py-3 mb-4 bg-white/5 border border-white/10 rounded-lg focus:border-primary-500 focus:outline-none"
-              />
+              <div className="relative mb-4">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">SOL</div>
+                <input
+                  type="number"
+                  value={betAmount}
+                  onChange={(e) => setBetAmount(e.target.value)}
+                  placeholder="0.00"
+                  step="0.1"
+                  min="0.01"
+                  className="input-primary pl-16 text-lg font-bold"
+                />
+              </div>
 
               <button
                 onClick={handlePlaceBet}
                 disabled={placing || !betAmount}
-                className="btn-primary w-full"
+                className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden"
               >
-                {placing ? "Placing Bet..." : `Bet ${betAmount || "0"} SOL on ${betSide ? "YES" : "NO"}`}
+                <span className="relative z-10">
+                  {placing ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="animate-spin">⏳</span>
+                      Placing Bet...
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      🎯 Bet {betAmount || "0"} SOL on {betSide ? "YES" : "NO"}
+                    </span>
+                  )}
+                </span>
               </button>
 
               <p className="text-xs text-gray-500 mt-3 text-center">
                 Platform fee: 2% on winnings
               </p>
+            </div>
+          )}
+
+          {!isActive && !market.resolved && market.oracleSource === "pythPrice" && publicKey && (
+            <div className="card sticky top-20">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-2xl">🔮</span>
+                <h3 className="text-lg font-semibold">Oracle Resolution</h3>
+              </div>
+              <p className="text-sm text-gray-400 mb-4">
+                This market can now be resolved by anyone using the Pyth price feed.
+              </p>
+              <button
+                onClick={handleResolveOracle}
+                disabled={resolving}
+                className="btn-primary w-full"
+              >
+                {resolving ? "Resolving..." : "Resolve Market"}
+              </button>
             </div>
           )}
 

@@ -16,6 +16,10 @@ interface Market {
   totalYesAmount: number;
   totalNoAmount: number;
   category: string;
+  oracleSource: "manual" | "pythPrice";
+  priceFeed?: string;
+  targetPrice?: number;
+  strikePrice?: number;
 }
 
 export default function MarketsPage() {
@@ -31,17 +35,24 @@ export default function MarketsPage() {
     async function fetchMarkets() {
       try {
         const accounts = await program.account.market.all();
-        const formatted = accounts.map((acc: any) => ({
-          publicKey: acc.publicKey.toString(),
-          question: acc.account.question,
-          description: acc.account.description,
-          endTime: acc.account.endTime.toNumber(),
-          resolved: acc.account.resolved,
-          outcome: acc.account.outcome,
-          totalYesAmount: acc.account.totalYesAmount.toNumber(),
-          totalNoAmount: acc.account.totalNoAmount.toNumber(),
-          category: Object.keys(acc.account.category)[0],
-        }));
+        const formatted = accounts.map((acc: any) => {
+          const oracleSource = acc.account.oracleSource.manual ? "manual" : "pythPrice";
+          return {
+            publicKey: acc.publicKey.toString(),
+            question: acc.account.question,
+            description: acc.account.description,
+            endTime: acc.account.endTime.toNumber(),
+            resolved: acc.account.resolved,
+            outcome: acc.account.outcome,
+            totalYesAmount: acc.account.totalYesAmount.toNumber(),
+            totalNoAmount: acc.account.totalNoAmount.toNumber(),
+            category: Object.keys(acc.account.category)[0],
+            oracleSource,
+            priceFeed: acc.account.priceFeed?.toString(),
+            targetPrice: acc.account.targetPrice?.toNumber(),
+            strikePrice: acc.account.strikePrice?.toNumber(),
+          };
+        });
         setMarkets(formatted);
       } catch (error) {
         console.error("Error fetching markets:", error);
@@ -125,19 +136,27 @@ export default function MarketsPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin text-4xl mb-4">⏳</div>
-          <p className="text-gray-400">Loading markets...</p>
+        <div className="flex items-center justify-center py-24">
+          <div className="text-center space-y-4">
+            <div className="relative w-24 h-24 mx-auto">
+              <div className="absolute inset-0 border-4 border-purple-500/30 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-t-purple-500 rounded-full animate-spin"></div>
+            </div>
+            <p className="text-gray-400 text-lg font-medium animate-pulse">Loading prediction markets...</p>
+          </div>
         </div>
       ) : filteredMarkets.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-gray-400 text-lg">No markets found</p>
-          <Link href="/create" className="btn-primary inline-block mt-4">
-            Create First Market
+        <div className="glass-vibrant rounded-2xl p-16 text-center border-2 border-dashed border-purple-500/30">
+          <div className="text-7xl mb-6">🎯</div>
+          <h3 className="text-2xl font-bold gradient-text mb-3">No Markets Found</h3>
+          <p className="text-gray-400 text-lg mb-6">Be the first to create a prediction market!</p>
+          <Link href="/create" className="btn-primary inline-flex items-center gap-2">
+            <span>Create First Market</span>
+            <span>→</span>
           </Link>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredMarkets.map((market) => {
             const total = market.totalYesAmount + market.totalNoAmount;
             const yesPercentage = total > 0 ? (market.totalYesAmount / total) * 100 : 50;
@@ -146,37 +165,48 @@ export default function MarketsPage() {
               <Link
                 key={market.publicKey}
                 href={`/market/${market.publicKey}`}
-                className="card card-glow hover:scale-105 transition-transform duration-200"
+                className="group card card-glow hover:shadow-glow-xl hover:-translate-y-2 transition-all duration-300 relative overflow-hidden"
               >
-                <div className="flex items-start justify-between mb-3">
-                  <span className="text-2xl">{getCategoryEmoji(market.category)}</span>
-                  {market.resolved ? (
-                    <span className="badge-animated bg-green-500/20 text-green-400">
-                      Resolved
-                    </span>
-                  ) : (
-                    <span className="badge-animated bg-blue-500/20 text-blue-400">
-                      {formatTimeLeft(market.endTime)}
-                    </span>
-                  )}
-                </div>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500"></div>
+                <div className="relative z-10">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex flex-col gap-2">
+                      <div className="text-sm font-bold uppercase tracking-wider text-purple-400">{market.category}</div>
+                      {market.oracleSource === "pythPrice" && (
+                        <span className="text-xs px-2 py-1 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 w-fit">
+                          🔮 Oracle
+                        </span>
+                      )}
+                    </div>
+                    {market.resolved ? (
+                      <span className="badge-animated bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border border-green-500/30">
+                        ✓ Resolved
+                      </span>
+                    ) : (
+                      <span className="badge-animated bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30">
+                        ⏱ {formatTimeLeft(market.endTime)}
+                      </span>
+                    )}
+                  </div>
 
                 <h3 className="text-lg font-semibold mb-2 line-clamp-2">{market.question}</h3>
                 <p className="text-sm text-gray-400 mb-4 line-clamp-2">{market.description}</p>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-green-400">YES {yesPercentage.toFixed(0)}%</span>
-                    <span className="text-red-400">NO {(100 - yesPercentage).toFixed(0)}%</span>
-                  </div>
-                  <div className="progress-bar">
-                    <div
-                      className="progress-fill bg-gradient-to-r from-green-500 to-emerald-600"
-                      style={{ width: `${yesPercentage}%` }}
-                    />
-                  </div>
-                  <div className="text-center text-sm text-gray-500">
-                    Total Pool: {(total / LAMPORTS_PER_SOL).toFixed(2)} SOL
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm font-bold">
+                      <span className="text-green-400 flex items-center gap-1">✓ YES {yesPercentage.toFixed(0)}%</span>
+                      <span className="text-red-400 flex items-center gap-1">✗ NO {(100 - yesPercentage).toFixed(0)}%</span>
+                    </div>
+                    <div className="progress-bar h-3 shadow-inner">
+                      <div
+                        className="progress-fill bg-gradient-to-r from-green-400 via-emerald-500 to-green-600 shadow-glow-green"
+                        style={{ width: `${yesPercentage}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-center gap-2 text-sm">
+                      <span className="text-gray-400">Total Pool:</span>
+                      <span className="font-bold text-yellow-400 text-base">{(total / LAMPORTS_PER_SOL).toFixed(2)} SOL</span>
+                    </div>
                   </div>
                 </div>
               </Link>

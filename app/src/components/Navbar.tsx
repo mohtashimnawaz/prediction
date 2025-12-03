@@ -9,6 +9,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const isActive = (path: string) => pathname === path;
   const [mounted, setMounted] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -20,29 +21,30 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-8">
             <Link href="/" className="flex items-center space-x-2 group">
-              <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🎮</span>
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                <span className="text-white font-bold text-sm">PA</span>
+              </div>
               <span className="text-xl font-bold gradient-text">
                 Prediction Arena
               </span>
             </Link>
             
-            <div className="hidden md:flex space-x-2">
+            <div className="hidden md:flex space-x-2" aria-label="Primary">
               {[
-                { href: '/markets', label: 'Markets', icon: '📊' },
-                { href: '/create', label: 'Create', icon: '➕' },
-                { href: '/cards', label: 'Cards', icon: '🃏' },
-                { href: '/my-bets', label: 'My Bets', icon: '💰' }
-              ].map(({ href, label, icon }) => (
+                { href: '/markets', label: 'Markets' },
+                { href: '/create', label: 'Create' },
+                { href: '/cards', label: 'Cards' },
+                { href: '/my-bets', label: 'My Bets' }
+              ].map(({ href, label }) => (
                 <Link
                   key={href}
                   href={href}
-                  className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                  className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium ${
                     isActive(href)
                       ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50'
                       : 'hover:bg-purple-600/20 hover:text-purple-300 text-gray-300'
                   }`}
                 >
-                  <span className="text-sm">{icon}</span>
                   <span>{label}</span>
                 </Link>
               ))}

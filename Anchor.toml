@@ -9,7 +9,7 @@ skip-lint = false
 prediction = "ocKzKFLEt9dWXtPmD1xQSvGgA7ugaFFkGv4oXnWNa2N"
 
 [programs.localnet]
-prediction = "894VcrRiHhZmk7hAuucP5foDGoeWpykqC84zfoLBTbfW"
+prediction = "ocKzKFLEt9dWXtPmD1xQSvGgA7ugaFFkGv4oXnWNa2N"
 
 [registry]
 url = "https://api.apr.dev"

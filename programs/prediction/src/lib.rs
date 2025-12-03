@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 use anchor_spl::token::{self, Token, Mint, TokenAccount, MintTo};
 use anchor_spl::associated_token::AssociatedToken;
+use pyth_sdk_solana::state::load_price_account;
 
 declare_id!("ocKzKFLEt9dWXtPmD1xQSvGgA7ugaFFkGv4oXnWNa2N");
 
@@ -28,10 +29,19 @@ pub mod prediction {
         description: String,
         end_time: i64,
         category: MarketCategory,
+        oracle_source: OracleSource,
+        price_feed: Option<Pubkey>,
+        target_price: Option<i64>,
     ) -> Result<()> {
         require!(question.len() <= 100, PredictionError::QuestionTooLong);
         require!(description.len() <= 200, PredictionError::DescriptionTooLong);
         require!(end_time > Clock::get()?.unix_timestamp, PredictionError::InvalidEndTime);
+
+        // Validate oracle configuration
+        if oracle_source == OracleSource::PythPrice {
+            require!(price_feed.is_some(), PredictionError::OracleConfigRequired);
+            require!(target_price.is_some(), PredictionError::OracleConfigRequired);
+        }
 
         let market = &mut ctx.accounts.market;
         market.authority = ctx.accounts.authority.key();
@@ -46,6 +56,12 @@ pub mod prediction {
         market.creator = ctx.accounts.authority.key();
         market.created_at = Clock::get()?.unix_timestamp;
         market.bump = ctx.bumps.market;
+        
+        // Oracle configuration
+        market.oracle_source = oracle_source;
+        market.price_feed = price_feed;
+        market.target_price = target_price;
+        market.strike_price = None; // Set at resolution time
 
         // Update platform stats
         let platform = &mut ctx.accounts.platform;
@@ -104,6 +120,10 @@ pub mod prediction {
         let market = &mut ctx.accounts.market;
         require!(!market.resolved, PredictionError::MarketAlreadyResolved);
         require!(
+            market.oracle_source == OracleSource::Manual,
+            PredictionError::RequiresOracleResolution
+        );
+        require!(
             ctx.accounts.authority.key() == market.authority,
             PredictionError::Unauthorized
         );
@@ -111,6 +131,50 @@ pub mod prediction {
             Clock::get()?.unix_timestamp >= market.end_time,
             PredictionError::MarketNotEnded
         );
+
+        market.resolved = true;
+        market.outcome = Some(outcome);
+
+        Ok(())
+    }
+
+    pub fn resolve_market_with_oracle(
+        ctx: Context<ResolveMarketWithOracle>,
+    ) -> Result<()> {
+        let market = &mut ctx.accounts.market;
+        require!(!market.resolved, PredictionError::MarketAlreadyResolved);
+        require!(
+            market.oracle_source == OracleSource::PythPrice,
+            PredictionError::NotOracleMarket
+        );
+        require!(
+            Clock::get()?.unix_timestamp >= market.end_time,
+            PredictionError::MarketNotEnded
+        );
+
+        // Load and validate Pyth price feed
+        let price_feed_data = &ctx.accounts.price_feed.try_borrow_data()
+            .map_err(|_| PredictionError::InvalidPriceFeed)?;
+        let price_account: &pyth_sdk_solana::state::PriceAccount = load_price_account(price_feed_data.as_ref())
+            .map_err(|_| PredictionError::InvalidPriceFeed)?;
+        
+        // Get current price
+        let current_price = price_account.agg.price;
+        let publish_time = price_account.timestamp;
+
+        // Verify price is recent (within 60 seconds)
+        let current_time = Clock::get()?.unix_timestamp;
+        require!(
+            current_time - publish_time <= 60,
+            PredictionError::StalePriceData
+        );
+
+        // Store the actual price at resolution time
+        market.strike_price = Some(current_price);
+        
+        // Determine outcome: YES if current price >= target price
+        let target = market.target_price.unwrap();
+        let outcome = current_price >= target;
 
         market.resolved = true;
         market.outcome = Some(outcome);
@@ -407,6 +471,14 @@ pub struct ResolveMarket<'info> {
 }
 
 #[derive(Accounts)]
+pub struct ResolveMarketWithOracle<'info> {
+    #[account(mut)]
+    pub market: Account<'info, Market>,
+    /// CHECK: Pyth price feed account, validated in instruction
+    pub price_feed: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
 pub struct ClaimWinnings<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
@@ -560,6 +632,11 @@ pub struct Market {
     pub total_no_amount: u64,
     pub category: MarketCategory,
     pub bump: u8,
+    // Oracle fields
+    pub oracle_source: OracleSource,
+    pub price_feed: Option<Pubkey>,
+    pub target_price: Option<i64>,
+    pub strike_price: Option<i64>,
 }
 
 #[account]
@@ -572,6 +649,13 @@ pub struct Bet {
     pub claimed: bool,
     pub card_mint: Option<Pubkey>,
     pub card_multiplier: u64,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace, Debug, Default)]
+pub enum OracleSource {
+    #[default]
+    Manual,      // Manual resolution by creator
+    PythPrice,   // Pyth oracle price feed
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace, Debug)]
@@ -614,4 +698,16 @@ pub enum PredictionError {
     NoWinningBets,
     #[msg("Not the card owner")]
     NotCardOwner,
+    #[msg("Market requires oracle resolution")]
+    RequiresOracleResolution,
+    #[msg("Market is not configured for oracle resolution")]
+    NotOracleMarket,
+    #[msg("Oracle configuration (price_feed and target_price) is required")]
+    OracleConfigRequired,
+    #[msg("Invalid Pyth price feed")]
+    InvalidPriceFeed,
+    #[msg("Price data not available")]
+    PriceNotAvailable,
+    #[msg("Price data is stale (older than 60 seconds)")]
+    StalePriceData,
 }

@@ -4,18 +4,25 @@ import { useState } from "react";
 import { useProgram, getMarketPDA, getPlatformPDA, BN } from "@/lib/anchor";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useRouter } from "next/navigation";
-import { SystemProgram } from "@solana/web3.js";
+import { SystemProgram, PublicKey } from "@solana/web3.js";
 
 const categories = [
-  { value: "sports", label: "⚽ Sports", key: "sports" },
-  { value: "crypto", label: "₿ Crypto", key: "crypto" },
-  { value: "politics", label: "🏛️ Politics", key: "politics" },
-  { value: "entertainment", label: "🎬 Entertainment", key: "entertainment" },
-  { value: "weather", label: "🌤️ Weather", key: "weather" },
-  { value: "technology", label: "💻 Technology", key: "technology" },
-  { value: "gaming", label: "🎮 Gaming", key: "gaming" },
-  { value: "other", label: "📊 Other", key: "other" },
+  { value: "sports", label: "Sports", key: "sports" },
+  { value: "crypto", label: "Crypto", key: "crypto" },
+  { value: "politics", label: "Politics", key: "politics" },
+  { value: "entertainment", label: "Entertainment", key: "entertainment" },
+  { value: "weather", label: "Weather", key: "weather" },
+  { value: "technology", label: "Technology", key: "technology" },
+  { value: "gaming", label: "Gaming", key: "gaming" },
+  { value: "other", label: "Other", key: "other" },
 ];
+
+// Pyth price feeds on Devnet
+const PYTH_FEEDS = {
+  "SOL/USD": "J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix",
+  "BTC/USD": "HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J",
+  "ETH/USD": "EdVCmQ9FSPcVe5YySXDPCRmc8aDQLKJ9xvYBMZPie1Vw",
+};
 
 export default function CreateMarketPage() {
   const program = useProgram();
@@ -27,6 +34,9 @@ export default function CreateMarketPage() {
     description: "",
     category: "crypto",
     duration: 24,
+    oracleType: "manual" as "manual" | "pyth",
+    priceFeed: "",
+    targetPrice: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -45,13 +55,25 @@ export default function CreateMarketPage() {
       const [marketPda] = getMarketPDA(publicKey, formData.question);
 
       const categoryObj = { [formData.category]: {} };
+      const oracleSource = formData.oracleType === "pyth" ? { pythPrice: {} } : { manual: {} };
+      
+      const priceFeed = formData.oracleType === "pyth" && formData.priceFeed 
+        ? new PublicKey(formData.priceFeed) 
+        : null;
+      
+      const targetPrice = formData.oracleType === "pyth" && formData.targetPrice
+        ? new BN(parseFloat(formData.targetPrice) * 1e8) // Pyth uses 8 decimals
+        : null;
 
       await program.methods
         .createMarket(
           formData.question,
           formData.description,
           new BN(endTime),
-          categoryObj
+          categoryObj,
+          oracleSource,
+          priceFeed,
+          targetPrice
         )
         .accounts({
           market: marketPda,
@@ -148,6 +170,74 @@ export default function CreateMarketPage() {
           />
           <p className="text-xs text-gray-500 mt-1">Market will end in {formData.duration} hours</p>
         </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">Resolution Type *</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, oracleType: "manual" })}
+              className={`p-4 rounded-lg border transition-all ${
+                formData.oracleType === "manual"
+                  ? "border-primary-500 bg-primary-500/20"
+                  : "border-white/10 bg-white/5 hover:bg-white/10"
+              }`}
+            >
+              <div className="font-medium">Manual</div>
+              <div className="text-xs text-gray-400 mt-1">You resolve the outcome</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, oracleType: "pyth" })}
+              className={`p-4 rounded-lg border transition-all ${
+                formData.oracleType === "pyth"
+                  ? "border-primary-500 bg-primary-500/20"
+                  : "border-white/10 bg-white/5 hover:bg-white/10"
+              }`}
+            >
+              <div className="font-medium">Oracle (Pyth)</div>
+              <div className="text-xs text-gray-400 mt-1">Auto-resolve with price feed</div>
+            </button>
+          </div>
+        </div>
+
+        {formData.oracleType === "pyth" && (
+          <>
+            <div>
+              <label className="block text-sm font-medium mb-2">Price Feed *</label>
+              <select
+                value={formData.priceFeed}
+                onChange={(e) => setFormData({ ...formData, priceFeed: e.target.value })}
+                required
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:border-primary-500 focus:outline-none"
+              >
+                <option value="">Select a price feed</option>
+                {Object.entries(PYTH_FEEDS).map(([symbol, address]) => (
+                  <option key={symbol} value={address}>
+                    {symbol}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Target Price (USD) *</label>
+              <input
+                type="number"
+                value={formData.targetPrice}
+                onChange={(e) => setFormData({ ...formData, targetPrice: e.target.value })}
+                placeholder="e.g., 50000"
+                step="0.01"
+                min="0"
+                required
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:border-primary-500 focus:outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Market resolves YES if price ≥ target, otherwise NO
+              </p>
+            </div>
+          </>
+        )}
 
         {error && (
           <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400">

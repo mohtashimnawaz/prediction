@@ -5,6 +5,8 @@ import { useProgram, getCardPDA, BN } from "@/lib/anchor";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Keypair, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from "@solana/spl-token";
+import { ToastContainer, useToast } from "@/components/Toast";
+import Link from "next/link";
 
 interface Card {
   publicKey: string;
@@ -20,9 +22,11 @@ interface Card {
 export default function CardsPage() {
   const program = useProgram();
   const { publicKey } = useWallet();
+  const { toasts, addToast, removeToast, updateToast } = useToast();
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
   const [minting, setMinting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const [mintForm, setMintForm] = useState({
     power: 5,
@@ -67,7 +71,10 @@ export default function CardsPage() {
   const handleMintCard = async () => {
     if (!program || !publicKey) return;
 
+    setShowConfirm(false);
     setMinting(true);
+    const toastId = addToast("Minting your NFT card...", "loading");
+
     try {
       const mintKeypair = Keypair.generate();
       const [cardPda] = getCardPDA(mintKeypair.publicKey);
@@ -90,27 +97,29 @@ export default function CardsPage() {
         })
         .transaction();
 
-      // Get recent blockhash
+      updateToast(toastId, "Sign the transaction in your wallet...", "loading");
+
       const { blockhash } = await program.provider.connection.getLatestBlockhash();
       tx.recentBlockhash = blockhash;
       tx.feePayer = publicKey;
-
-      // Sign with mint keypair first (using Buffer properly)
       tx.sign(mintKeypair);
 
-      // Send transaction via wallet adapter
       const wallet = (window as any).solana;
       if (!wallet) throw new Error("Wallet not found");
       
       const { signature } = await wallet.signAndSendTransaction(tx);
       
+      updateToast(toastId, "Confirming transaction...", "loading");
       await program.provider.connection.confirmTransaction(signature);
 
-      alert("Card minted successfully!");
-      window.location.reload();
+      removeToast(toastId);
+      addToast("🎉 Card minted successfully!", "success");
+      
+      setTimeout(() => window.location.reload(), 1500);
     } catch (error: any) {
       console.error(error);
-      alert(error.message || "Failed to mint card");
+      removeToast(toastId);
+      addToast(error.message || "Failed to mint card", "error");
     } finally {
       setMinting(false);
     }
@@ -136,7 +145,9 @@ export default function CardsPage() {
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
         <div className="text-center space-y-4">
-          <div className="text-6xl mb-4">🃏</div>
+          <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-glow mb-4">
+            <span className="text-2xl font-bold text-white">NFT</span>
+          </div>
           <h1 className="text-4xl font-bold gradient-text">My Cards</h1>
           <p className="text-gray-400 text-lg">Connect your wallet to view your cards</p>
         </div>
@@ -154,8 +165,14 @@ export default function CardsPage() {
       </div>
 
       {/* Mint Card Section */}
-      <div className="card mb-8 border border-purple-500/30">
-        <h2 className="text-2xl font-bold mb-4">🎨 Mint New Card</h2>
+      <div className="card mb-8 border-2 border-purple-500/30 bg-gradient-to-br from-purple-500/5 to-blue-500/5">
+        <div className="flex items-center gap-3 mb-4">
+          <span className="text-4xl">🎨</span>
+          <div>
+            <h2 className="text-2xl font-bold">Mint New Card</h2>
+            <p className="text-sm text-gray-500">Free on Devnet</p>
+          </div>
+        </div>
         <p className="text-gray-400 mb-6">
           Create a unique NFT prediction card with custom traits
         </p>
@@ -218,25 +235,90 @@ export default function CardsPage() {
         </div>
 
         <button
-          onClick={handleMintCard}
+          onClick={() => setShowConfirm(true)}
           disabled={minting}
-          className="btn-primary w-full"
+          className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          {minting ? "Minting..." : "Mint Card (Free on Devnet)"}
+          {minting ? (
+            <>
+              <span className="animate-spin">⏳</span>
+              Minting...
+            </>
+          ) : (
+            <>
+              <span>✨</span>
+              Mint Card
+              <span>→</span>
+            </>
+          )}
         </button>
       </div>
 
+      {/* Confirmation Modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowConfirm(false)}>
+          <div className="glass-strong rounded-2xl p-6 max-w-md w-full border-2 border-purple-500/30" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-2xl font-bold mb-4 gradient-text">Confirm Mint</h3>
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between p-3 bg-white/5 rounded-lg">
+                <span className="text-gray-400">Power:</span>
+                <span className="font-bold text-red-400">{"⚡".repeat(mintForm.power)}</span>
+              </div>
+              <div className="flex justify-between p-3 bg-white/5 rounded-lg">
+                <span className="text-gray-400">Rarity:</span>
+                <span className="font-bold text-purple-400">{getRarityLabel(mintForm.rarity)}</span>
+              </div>
+              <div className="flex justify-between p-3 bg-white/5 rounded-lg">
+                <span className="text-gray-400">Multiplier:</span>
+                <span className="font-bold text-yellow-400">{(mintForm.multiplier / 1000).toFixed(1)}x</span>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMintCard}
+                disabled={minting}
+                className="flex-1 btn-primary disabled:opacity-50"
+              >
+                {minting ? "Minting..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+
       {/* Cards Grid */}
       {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin text-4xl mb-4">⏳</div>
-          <p className="text-gray-400">Loading your cards...</p>
+        <div className="flex items-center justify-center py-24">
+          <div className="text-center space-y-4">
+            <div className="relative w-20 h-20 mx-auto">
+              <div className="absolute inset-0 border-4 border-purple-500/30 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-t-purple-500 rounded-full animate-spin"></div>
+            </div>
+            <p className="text-gray-400 font-medium animate-pulse">Loading your cards...</p>
+          </div>
         </div>
       ) : cards.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4">🃏</div>
-          <p className="text-gray-400 text-lg mb-4">You don't have any cards yet</p>
-          <p className="text-sm text-gray-500">Mint your first card above!</p>
+        <div className="glass-vibrant rounded-2xl p-16 text-center border-2 border-dashed border-purple-500/30">
+          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center shadow-glow">
+            <span className="text-3xl font-bold text-white">0</span>
+          </div>
+          <h3 className="text-2xl font-bold gradient-text mb-3">No Cards Yet</h3>
+          <p className="text-gray-400 text-lg mb-6">Mint your first NFT prediction card to get started!</p>
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="btn-primary inline-flex items-center gap-2"
+          >
+            <span>↑</span>
+            Scroll to Mint Form
+          </button>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -253,7 +335,9 @@ export default function CardsPage() {
               >
                 <div className="bg-gray-900 rounded-lg p-6 h-full">
                   <div className="flex justify-between items-start mb-4">
-                    <div className="text-4xl">🃏</div>
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                      <span className="text-white font-bold text-xs">NFT</span>
+                    </div>
                     <span className="badge-animated text-xs">
                       {getRarityLabel(card.rarity)}
                     </span>
@@ -296,6 +380,13 @@ export default function CardsPage() {
                     <div className="text-xs text-gray-600 truncate">
                       {card.mint}
                     </div>
+
+                    <Link
+                      href="/battle"
+                      className="mt-4 w-full py-2 px-4 bg-gradient-to-r from-red-500/20 to-orange-500/20 hover:from-red-500/30 hover:to-orange-500/30 border border-red-500/30 rounded-lg text-center text-sm font-bold transition-all duration-200 flex items-center justify-center gap-2"
+                    >
+                      Battle Now
+                    </Link>
                   </div>
                 </div>
               </div>
