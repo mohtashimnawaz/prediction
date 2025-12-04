@@ -1,8 +1,8 @@
 import { Program, AnchorProvider, web3, BN } from "@coral-xyz/anchor";
 import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import { useMemo } from "react";
-import type { Prediction } from "../../../target/types/prediction";
-import IDL from "../../../target/idl/prediction.json";
+import type { Prediction } from "../../target/types/prediction";
+import IDL from "../../target/idl/prediction.json";
 
 export const PROGRAM_ID = new web3.PublicKey("ocKzKFLEt9dWXtPmD1xQSvGgA7ugaFFkGv4oXnWNa2N");
 
