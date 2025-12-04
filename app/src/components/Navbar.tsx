@@ -56,7 +56,8 @@ export default function Navbar() {
                 { href: '/create', label: 'Create', icon: '✨' },
                 { href: '/cards', label: 'Cards', icon: '🎴' },
                 { href: '/battle', label: 'Battle', icon: '⚔️' },
-                { href: '/my-bets', label: 'My Bets', icon: '💰' }
+                { href: '/my-bets', label: 'My Bets', icon: '💰' },
+                { href: '/winnings', label: 'Winnings', icon: '🏆' }
               ].map(({ href, label, icon }) => (
                 <Link
                   key={href}
@@ -96,7 +97,8 @@ export default function Navbar() {
               { href: '/create', label: 'Create', icon: '✨' },
               { href: '/cards', label: 'Cards', icon: '🎴' },
               { href: '/battle', label: 'Battle', icon: '⚔️' },
-              { href: '/my-bets', label: 'Bets', icon: '💰' }
+              { href: '/my-bets', label: 'Bets', icon: '💰' },
+              { href: '/winnings', label: 'Winnings', icon: '🏆' }
             ].map(({ href, label, icon }) => (
               <Link
                 key={href}
