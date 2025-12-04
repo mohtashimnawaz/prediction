@@ -1,0 +1,1412 @@
+{
+  "address": "ocKzKFLEt9dWXtPmD1xQSvGgA7ugaFFkGv4oXnWNa2N",
+  "metadata": {
+    "name": "prediction",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "battle",
+      "discriminator": [
+        124,
+        60,
+        127,
+        254,
+        179,
+        26,
+        138,
+        20
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "platform",
+          "writable": true
+        },
+        {
+          "name": "card"
+        },
+        {
+          "name": "card_token_account"
+        },
+        {
+          "name": "bet",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "player"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "player",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "prediction",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "claim_winnings",
+      "discriminator": [
+        161,
+        215,
+        24,
+        59,
+        14,
+        236,
+        242,
+        221
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "bet",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bettor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "collect_platform_fee",
+      "discriminator": [
+        151,
+        88,
+        172,
+        250,
+        117,
+        185,
+        59,
+        209
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "platform"
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_market",
+      "discriminator": [
+        103,
+        226,
+        97,
+        235,
+        200,
+        188,
+        251,
+        254
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "platform",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "question",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "end_time",
+          "type": "i64"
+        },
+        {
+          "name": "category",
+          "type": {
+            "defined": {
+              "name": "MarketCategory"
+            }
+          }
+        },
+        {
+          "name": "oracle_source",
+          "type": {
+            "defined": {
+              "name": "OracleSource"
+            }
+          }
+        },
+        {
+          "name": "oracle_data_type",
+          "type": {
+            "defined": {
+              "name": "OracleDataType"
+            }
+          }
+        },
+        {
+          "name": "price_feed",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
+          "name": "target_price",
+          "type": {
+            "option": "i64"
+          }
+        },
+        {
+          "name": "game_id",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "target_spread",
+          "type": {
+            "option": "i32"
+          }
+        },
+        {
+          "name": "location",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "weather_metric",
+          "type": {
+            "option": {
+              "defined": {
+                "name": "WeatherMetric"
+              }
+            }
+          }
+        },
+        {
+          "name": "target_value",
+          "type": {
+            "option": "i64"
+          }
+        },
+        {
+          "name": "data_identifier",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "metric_type",
+          "type": {
+            "option": {
+              "defined": {
+                "name": "MetricType"
+              }
+            }
+          }
+        },
+        {
+          "name": "threshold",
+          "type": {
+            "option": "u64"
+          }
+        }
+      ]
+    },
+    {
+      "name": "initialize_platform",
+      "discriminator": [
+        119,
+        201,
+        101,
+        45,
+        75,
+        122,
+        89,
+        3
+      ],
+      "accounts": [
+        {
+          "name": "platform",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury"
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "mint_card",
+      "discriminator": [
+        58,
+        198,
+        225,
+        36,
+        193,
+        210,
+        202,
+        108
+      ],
+      "accounts": [
+        {
+          "name": "card",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "owner",
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "power",
+          "type": "u8"
+        },
+        {
+          "name": "rarity",
+          "type": "u8"
+        },
+        {
+          "name": "multiplier",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "place_bet",
+      "discriminator": [
+        222,
+        62,
+        67,
+        220,
+        63,
+        166,
+        126,
+        33
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "platform",
+          "writable": true
+        },
+        {
+          "name": "bet",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "bettor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bettor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "prediction",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "resolve_market",
+      "discriminator": [
+        155,
+        23,
+        80,
+        173,
+        46,
+        74,
+        23,
+        239
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "outcome",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "resolve_market_social",
+      "discriminator": [
+        68,
+        132,
+        41,
+        201,
+        87,
+        167,
+        147,
+        55
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "actual_value",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "resolve_market_sports",
+      "discriminator": [
+        108,
+        111,
+        2,
+        53,
+        246,
+        103,
+        238,
+        253
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "team_a_score",
+          "type": "u32"
+        },
+        {
+          "name": "team_b_score",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "resolve_market_weather",
+      "discriminator": [
+        75,
+        64,
+        14,
+        108,
+        248,
+        64,
+        220,
+        93
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "recorded_value",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "resolve_market_with_oracle",
+      "discriminator": [
+        47,
+        30,
+        105,
+        74,
+        231,
+        184,
+        219,
+        163
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "price_feed"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_card_stats",
+      "discriminator": [
+        111,
+        4,
+        149,
+        130,
+        129,
+        225,
+        81,
+        44
+      ],
+      "accounts": [
+        {
+          "name": "card",
+          "writable": true
+        },
+        {
+          "name": "card_token_account"
+        },
+        {
+          "name": "owner",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "won",
+          "type": "bool"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Bet",
+      "discriminator": [
+        147,
+        23,
+        35,
+        59,
+        15,
+        75,
+        155,
+        32
+      ]
+    },
+    {
+      "name": "Card",
+      "discriminator": [
+        166,
+        250,
+        46,
+        230,
+        152,
+        63,
+        140,
+        182
+      ]
+    },
+    {
+      "name": "Market",
+      "discriminator": [
+        219,
+        190,
+        213,
+        55,
+        0,
+        227,
+        198,
+        154
+      ]
+    },
+    {
+      "name": "Platform",
+      "discriminator": [
+        77,
+        92,
+        204,
+        58,
+        187,
+        98,
+        91,
+        12
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "QuestionTooLong",
+      "msg": "Question is too long (max 100 characters)"
+    },
+    {
+      "code": 6001,
+      "name": "DescriptionTooLong",
+      "msg": "Description is too long (max 200 characters)"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidEndTime",
+      "msg": "End time must be in the future"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidAmount",
+      "msg": "Invalid bet amount"
+    },
+    {
+      "code": 6004,
+      "name": "MarketAlreadyResolved",
+      "msg": "Market has already been resolved"
+    },
+    {
+      "code": 6005,
+      "name": "MarketEnded",
+      "msg": "Market betting period has ended"
+    },
+    {
+      "code": 6006,
+      "name": "MarketNotResolved",
+      "msg": "Market has not been resolved yet"
+    },
+    {
+      "code": 6007,
+      "name": "AlreadyClaimed",
+      "msg": "Winnings already claimed"
+    },
+    {
+      "code": 6008,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6009,
+      "name": "MarketNotEnded",
+      "msg": "Market betting period has not ended"
+    },
+    {
+      "code": 6010,
+      "name": "LosingBet",
+      "msg": "This is a losing bet"
+    },
+    {
+      "code": 6011,
+      "name": "NoWinningBets",
+      "msg": "No winning bets in this market"
+    },
+    {
+      "code": 6012,
+      "name": "NotCardOwner",
+      "msg": "Not the card owner"
+    },
+    {
+      "code": 6013,
+      "name": "RequiresOracleResolution",
+      "msg": "Market requires oracle resolution"
+    },
+    {
+      "code": 6014,
+      "name": "NotOracleMarket",
+      "msg": "Market is not configured for oracle resolution"
+    },
+    {
+      "code": 6015,
+      "name": "OracleConfigRequired",
+      "msg": "Oracle configuration (price_feed and target_price) is required"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidPriceFeed",
+      "msg": "Invalid Pyth price feed"
+    },
+    {
+      "code": 6017,
+      "name": "PriceNotAvailable",
+      "msg": "Price data not available"
+    },
+    {
+      "code": 6018,
+      "name": "StalePriceData",
+      "msg": "Price data is stale (older than 60 seconds)"
+    }
+  ],
+  "types": [
+    {
+      "name": "Bet",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "bettor",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "prediction",
+            "type": "bool"
+          },
+          {
+            "name": "claimed",
+            "type": "bool"
+          },
+          {
+            "name": "card_mint",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "card_multiplier",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Card",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "power",
+            "type": "u8"
+          },
+          {
+            "name": "rarity",
+            "type": "u8"
+          },
+          {
+            "name": "multiplier",
+            "type": "u64"
+          },
+          {
+            "name": "wins",
+            "type": "u64"
+          },
+          {
+            "name": "losses",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Market",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "question",
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "end_time",
+            "type": "i64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "resolved",
+            "type": "bool"
+          },
+          {
+            "name": "outcome",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "total_yes_amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_no_amount",
+            "type": "u64"
+          },
+          {
+            "name": "category",
+            "type": {
+              "defined": {
+                "name": "MarketCategory"
+              }
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "oracle_source",
+            "type": {
+              "defined": {
+                "name": "OracleSource"
+              }
+            }
+          },
+          {
+            "name": "oracle_data_type",
+            "type": {
+              "defined": {
+                "name": "OracleDataType"
+              }
+            }
+          },
+          {
+            "name": "price_feed",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "target_price",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "strike_price",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "game_id",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "team_a_score",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "team_b_score",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "target_spread",
+            "type": {
+              "option": "i32"
+            }
+          },
+          {
+            "name": "location",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "weather_metric",
+            "type": {
+              "defined": {
+                "name": "WeatherMetric"
+              }
+            }
+          },
+          {
+            "name": "target_value",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "recorded_value",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "data_identifier",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "metric_type",
+            "type": {
+              "defined": {
+                "name": "MetricType"
+              }
+            }
+          },
+          {
+            "name": "threshold",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "actual_value",
+            "type": {
+              "option": "u64"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketCategory",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Sports"
+          },
+          {
+            "name": "Crypto"
+          },
+          {
+            "name": "Politics"
+          },
+          {
+            "name": "Entertainment"
+          },
+          {
+            "name": "Weather"
+          },
+          {
+            "name": "Technology"
+          },
+          {
+            "name": "Gaming"
+          },
+          {
+            "name": "Other"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MetricType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "FollowerCount"
+          },
+          {
+            "name": "LikeCount"
+          },
+          {
+            "name": "ViewCount"
+          },
+          {
+            "name": "BoxOfficeGross"
+          },
+          {
+            "name": "StreamRank"
+          },
+          {
+            "name": "Custom"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleDataType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "Price"
+          },
+          {
+            "name": "SportsScore"
+          },
+          {
+            "name": "SportsWinner"
+          },
+          {
+            "name": "Weather"
+          },
+          {
+            "name": "Social"
+          },
+          {
+            "name": "BoxOffice"
+          },
+          {
+            "name": "Custom"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleSource",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Manual"
+          },
+          {
+            "name": "PythPrice"
+          },
+          {
+            "name": "ChainlinkPrice"
+          },
+          {
+            "name": "ChainlinkSports"
+          },
+          {
+            "name": "ChainlinkWeather"
+          },
+          {
+            "name": "SwitchboardPrice"
+          },
+          {
+            "name": "SwitchboardCustom"
+          },
+          {
+            "name": "CustomApi"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Platform",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_markets",
+            "type": "u64"
+          },
+          {
+            "name": "total_volume",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WeatherMetric",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "Temperature"
+          },
+          {
+            "name": "Precipitation"
+          },
+          {
+            "name": "WindSpeed"
+          },
+          {
+            "name": "Humidity"
+          }
+        ]
+      }
+    }
+  ]
+}

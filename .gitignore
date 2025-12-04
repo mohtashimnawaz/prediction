@@ -3,7 +3,7 @@
 test-ledger
 
 # Rust
-target/
+/target/
 **/*.rs.bk
 Cargo.lock
 
