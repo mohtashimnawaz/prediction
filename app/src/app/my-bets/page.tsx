@@ -26,14 +26,18 @@ export default function MyBetsPage() {
     if (!program || !publicKey) return;
 
     async function fetchBets() {
+      if (!program || !publicKey) {
+        setLoading(false);
+        return;
+      }
       try {
-        const markets = await program.account.market.all();
+        const markets = await (program.account as any).market.all();
         const userBets: Bet[] = [];
 
         for (const market of markets) {
           const [betPda] = getBetPDA(market.publicKey, publicKey);
           try {
-            const betAccount = await program.account.bet.fetch(betPda);
+            const betAccount = await (program.account as any).bet.fetch(betPda);
             userBets.push({
               marketAddress: market.publicKey.toString(),
               marketQuestion: (market.account as any).question,

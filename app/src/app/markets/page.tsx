@@ -45,8 +45,12 @@ export default function MarketsPage() {
     if (!program) return;
 
     async function fetchMarkets() {
+      if (!program) {
+        setLoading(false);
+        return;
+      }
       try {
-        const accounts = await program.account.market.all();
+        const accounts = await (program.account as any).market.all();
         const formatted = accounts.map((acc: any) => {
           // Parse oracle source
           const oracleSourceKey = Object.keys(acc.account.oracleSource)[0];

@@ -56,8 +56,12 @@ export default function MarketPage({ params }: { params: { id: string } }) {
     if (!program) return;
 
     async function fetchData() {
+      if (!program) {
+        setLoading(false);
+        return;
+      }
       try {
-        const marketAccount = await program.account.market.fetch(marketPubkey);
+        const marketAccount = await (program.account as any).market.fetch(marketPubkey);
         const oracleSourceKey = Object.keys(marketAccount.oracleSource)[0];
         const oracleDataTypeKey = Object.keys(marketAccount.oracleDataType)[0];
         const weatherMetricKey = marketAccount.weatherMetric ? Object.keys(marketAccount.weatherMetric)[0] : undefined;
@@ -97,7 +101,7 @@ export default function MarketPage({ params }: { params: { id: string } }) {
         if (publicKey) {
           const [betPda] = getBetPDA(marketPubkey, publicKey);
           try {
-            const betAccount = await program.account.bet.fetch(betPda);
+            const betAccount = await (program.account as any).bet.fetch(betPda);
             setUserBet(betAccount);
           } catch {
             // No bet yet

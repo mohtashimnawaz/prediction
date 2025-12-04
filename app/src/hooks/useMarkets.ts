@@ -26,9 +26,13 @@ export function useMarkets() {
     if (!program) return;
 
     async function fetchMarkets() {
+      if (!program) {
+        setLoading(false);
+        return;
+      }
       try {
-        const accounts = await program.account.market.all();
-        const formattedMarkets = accounts.map((acc) => ({
+        const accounts = await (program.account as any).market.all();
+        const formattedMarkets = accounts.map((acc: any) => ({
           publicKey: acc.publicKey,
           authority: acc.account.authority,
           creator: acc.account.creator,

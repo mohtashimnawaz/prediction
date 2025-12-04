@@ -38,6 +38,11 @@ export default function BattlePage() {
     }
 
     async function fetchCards() {
+      if (!program || !publicKey) {
+        setLoading(false);
+        return;
+      }
+      
       try {
         const allCards = await (program.account as any).card.all();
         
@@ -89,6 +94,12 @@ export default function BattlePage() {
     const toastId = addToast("Initiating battle...", "loading");
 
     try {
+      if (!program || !publicKey) {
+        updateToast(toastId, "Program not initialized", "error");
+        setBattling(false);
+        return;
+      }
+
       const myCardPubkey = new PublicKey(selectedMyCard);
       const opponentCardPubkey = new PublicKey(selectedOpponentCard);
 
